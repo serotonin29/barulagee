@@ -10,6 +10,7 @@ export default function DashboardPage() {
     <MainLayout pageTitle="Dashboard">
       <div className="space-y-8">
         <MotivationCarousel />
+        <Announcements />
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-8">
             <ProgressOverview />
@@ -17,7 +18,6 @@ export default function DashboardPage() {
           </div>
           <div className="lg:col-span-1 space-y-8">
             <FeatureShortcuts />
-            <Announcements />
           </div>
         </div>
       </div>
