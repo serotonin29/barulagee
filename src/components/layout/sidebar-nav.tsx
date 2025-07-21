@@ -28,11 +28,11 @@ const mainNavItems = [
   { href: '/materials', icon: BookCopy, label: 'Materi' },
   { href: '/quizzes', icon: FileQuestion, label: 'Quiz' },
   { href: '/bookmarks', icon: Bookmark, label: 'Bookmark' },
+  { href: '/forum', icon: Users, label: 'Forum' },
 ];
 
 const secondaryNavItems = [
     { href: '/ai-learning', icon: Sparkles, label: 'Belajar dengan AI' },
-    { href: '/forum', icon: Users, label: 'Forum' },
 ]
 
 const adminNavItems = [

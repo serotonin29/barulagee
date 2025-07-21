@@ -1,4 +1,4 @@
-import type { Material, Quiz, Announcement } from '@/types';
+import type { Material, Quiz, Announcement, ForumThread, ForumReply } from '@/types';
 
 export const materials: Material[] = [
   {
@@ -122,5 +122,86 @@ export const announcements: Announcement[] = [
     title: 'New Course Available',
     date: '2024-07-18',
     content: 'A new advanced course on Neuropharmacology is now available for enrollment.',
+  },
+];
+
+export const forumReplies: ForumReply[] = [
+  {
+    id: 'rep-001',
+    threadId: 'thr-001',
+    authorId: 'user-002',
+    authorName: 'Dosen Budi',
+    authorAvatar: 'https://placehold.co/32x32',
+    content: 'Pertanyaan bagus! Saraf kranial adalah 12 pasang saraf yang berasal langsung dari otak, bukan dari sumsum tulang belakang. Mereka bertanggung jawab untuk fungsi sensorik dan motorik di kepala dan leher.',
+    createdAt: '2024-07-20T11:00:00Z',
+    upvotes: 15,
+    isVerified: true,
+  },
+  {
+    id: 'rep-002',
+    threadId: 'thr-001',
+    authorId: 'user-003',
+    authorName: 'Mahasiswa Chandra',
+    authorAvatar: 'https://placehold.co/32x32',
+    content: 'Terima kasih, Pak Budi. Apakah nervus vagus termasuk di dalamnya?',
+    createdAt: '2024-07-20T11:30:00Z',
+    upvotes: 3,
+    isVerified: false,
+  },
+   {
+    id: 'rep-003',
+    threadId: 'thr-002',
+    authorId: 'user-004',
+    authorName: 'Mahasiswa Dini',
+    authorAvatar: 'https://placehold.co/32x32',
+    content: 'Siklus Krebs terjadi di dalam mitokondria. Ini adalah bagian penting dari respirasi seluler untuk menghasilkan ATP.',
+    createdAt: '2024-07-21T09:00:00Z',
+    upvotes: 8,
+    isVerified: false,
+  },
+];
+
+export const forumThreads: ForumThread[] = [
+  {
+    id: 'thr-001',
+    title: 'Perbedaan Saraf Kranial dan Saraf Spinal',
+    topic: 'Anatomy',
+    content: 'Selamat pagi, saya masih bingung mengenai perbedaan fundamental antara saraf kranial dan saraf spinal. Apakah ada yang bisa menjelaskan dengan sederhana?',
+    authorId: 'user-001',
+    authorName: 'Mahasiswa Ani',
+    authorAvatar: 'https://placehold.co/32x32',
+    createdAt: '2024-07-20T10:30:00Z',
+    upvotes: 12,
+    isAnswered: true,
+    replyCount: 2,
+    replies: forumReplies.filter(r => r.threadId === 'thr-001'),
+  },
+  {
+    id: 'thr-002',
+    title: 'Lokasi Siklus Krebs',
+    topic: 'Physiology',
+    content: 'Di mana tepatnya siklus Krebs berlangsung di dalam sel? Apakah ada kondisi khusus yang diperlukan?',
+    authorId: 'user-004',
+    authorName: 'Mahasiswa Dini',
+    authorAvatar: 'https://placehold.co/32x32',
+    createdAt: '2024-07-21T08:45:00Z',
+    upvotes: 5,
+    isAnswered: false,
+    replyCount: 1,
+    replies: forumReplies.filter(r => r.threadId === 'thr-002'),
+  },
+    {
+    id: 'thr-003',
+    title: 'Penggunaan Obat Beta-Blocker',
+    topic: 'Pharmacology',
+    content: 'Kapan kita seharusnya meresepkan beta-blocker untuk pasien hipertensi? Apa saja kontraindikasinya?',
+    authorId: 'user-005',
+    authorName: 'Mahasiswa Eka',
+    authorAvatar: 'https://placehold.co/32x32',
+    createdAt: '2024-07-22T14:00:00Z',
+    upvotes: 8,
+    isAnswered: false,
+    replyCount: 0,
+    replies: [],
   },
 ];

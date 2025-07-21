@@ -36,3 +36,30 @@ export type ChatMessage = {
   role: 'user' | 'assistant';
   message: string;
 };
+
+export type ForumReply = {
+    id: string;
+    threadId: string;
+    content: string;
+    authorId: string;
+    authorName: string;
+    authorAvatar: string;
+    createdAt: string;
+    upvotes: number;
+    isVerified: boolean;
+};
+
+export type ForumThread = {
+    id: string;
+    title: string;
+    topic: string;
+    content: string;
+    authorId: string;
+    authorName: string;
+    authorAvatar: string;
+    createdAt: string;
+    upvotes: number;
+    isAnswered: boolean;
+    replyCount: number;
+    replies: ForumReply[];
+};
