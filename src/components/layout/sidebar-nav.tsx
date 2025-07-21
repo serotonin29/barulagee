@@ -13,6 +13,7 @@ import {
   BrainCircuit,
   Trophy,
   Upload,
+  Sparkles,
 } from 'lucide-react';
 
 import {
@@ -33,6 +34,7 @@ const mainNavItems = [
 ];
 
 const secondaryNavItems = [
+    { href: '/ai-learning', icon: Sparkles, label: 'Belajar dengan AI' },
     { href: '/forum', icon: Users, label: 'Forum' },
     { href: '/chat', icon: MessageSquare, label: 'Chat AI' },
 ]

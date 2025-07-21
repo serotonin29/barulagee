@@ -15,6 +15,7 @@ import {
   User,
   Trophy,
   Upload,
+  Sparkles,
 } from 'lucide-react';
 import {
   Sheet,
@@ -40,6 +41,7 @@ const navItems = [
     { href: '/quizzes', icon: FileQuestion, label: 'Quiz' },
     { href: '/bookmarks', icon: Bookmark, label: 'Bookmark' },
     { href: '/leaderboard', icon: Trophy, label: 'Papan Peringkat' },
+    { href: '/ai-learning', icon: Sparkles, label: 'Belajar dengan AI' },
     { href: '/forum', icon: Users, label: 'Forum' },
     { href: '/chat', icon: MessageSquare, label: 'Chat AI' },
 ];
