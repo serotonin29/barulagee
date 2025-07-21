@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { SearchHandler } from './search-handler';
+import { usePathname } from 'next/navigation';
 
 const navItems = [
     { href: '/materials', icon: BookCopy, label: 'Materi' },
@@ -41,6 +42,7 @@ const navItems = [
 ];
 
 export function Header({ pageTitle }: { pageTitle: string }) {
+  const pathname = usePathname();
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
       <Sheet>
@@ -61,7 +63,7 @@ export function Header({ pageTitle }: { pageTitle: string }) {
             </Link>
             <Link
                 href="/dashboard"
-                className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+                className={`flex items-center gap-4 px-2.5 ${pathname === '/dashboard' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                 <LayoutDashboard className="h-5 w-5" />
                 Dashboard
@@ -70,7 +72,7 @@ export function Header({ pageTitle }: { pageTitle: string }) {
                 <Link
                 key={item.label}
                 href={item.href}
-                className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+                className={`flex items-center gap-4 px-2.5 ${pathname.startsWith(item.href) ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                 <item.icon className="h-5 w-5" />
                 {item.label}
@@ -78,7 +80,7 @@ export function Header({ pageTitle }: { pageTitle: string }) {
             ))}
              <Link
                 href="/settings"
-                className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+                className={`flex items-center gap-4 px-2.5 ${pathname === '/settings' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                 <Settings className="h-5 w-5" />
                 Pengaturan
@@ -100,7 +102,7 @@ export function Header({ pageTitle }: { pageTitle: string }) {
                 className="overflow-hidden rounded-full"
               >
                 <Avatar>
-                  <AvatarImage src="https://placehold.co/32x32" alt="@shadcn" />
+                  <AvatarImage src="https://placehold.co/32x32" alt="@shadcn" data-ai-hint="user avatar" />
                   <AvatarFallback><User /></AvatarFallback>
                 </Avatar>
               </Button>
