@@ -121,7 +121,7 @@ export function Header({ pageTitle }: { pageTitle: string }) {
                 className="overflow-hidden rounded-full"
               >
                 <Avatar>
-                  <AvatarImage src="https://placehold.co/32x32" alt="@shadcn" data-ai-hint="user avatar" />
+                  <AvatarImage src="https://placehold.co/32x32" alt="User Avatar" data-ai-hint="user avatar" />
                   <AvatarFallback><User /></AvatarFallback>
                 </Avatar>
               </Button>
@@ -130,13 +130,17 @@ export function Header({ pageTitle }: { pageTitle: string }) {
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Pengaturan</span>
+                <Link href="/settings" className="flex items-center w-full">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Pengaturan</span>
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Logout</span>
+                 <Link href="/login" className="flex items-center w-full">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Logout</span>
+                </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

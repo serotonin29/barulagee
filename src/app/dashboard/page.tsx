@@ -11,13 +11,10 @@ export default function DashboardPage() {
       <div className="space-y-8">
         <MotivationCarousel />
         <div className="grid gap-8 lg:grid-cols-3">
-          {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             <ProgressOverview />
             <RecommendedMaterials />
           </div>
-
-          {/* Sidebar */}
           <div className="lg:col-span-1 space-y-8">
             <FeatureShortcuts />
             <Announcements />
