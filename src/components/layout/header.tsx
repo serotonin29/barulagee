@@ -6,14 +6,12 @@ import {
   BookCopy,
   FileQuestion,
   Bookmark,
-  MessageSquare,
   Users,
   BrainCircuit,
   PanelLeft,
   Settings,
   LogOut,
   User,
-  Trophy,
   Upload,
   Sparkles,
 } from 'lucide-react';
@@ -40,10 +38,8 @@ const navItems = [
     { href: '/materials', icon: BookCopy, label: 'Materi' },
     { href: '/quizzes', icon: FileQuestion, label: 'Quiz' },
     { href: '/bookmarks', icon: Bookmark, label: 'Bookmark' },
-    { href: '/leaderboard', icon: Trophy, label: 'Papan Peringkat' },
     { href: '/ai-learning', icon: Sparkles, label: 'Belajar dengan AI' },
     { href: '/forum', icon: Users, label: 'Forum' },
-    { href: '/chat', icon: MessageSquare, label: 'Chat AI' },
 ];
 
 const adminNavItems = [

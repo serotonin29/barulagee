@@ -4,6 +4,7 @@ import { Announcements } from '@/components/dashboard/announcements';
 import { RecommendedMaterials } from '@/components/dashboard/recommended-materials';
 import { FeatureShortcuts } from '@/components/dashboard/feature-shortcuts';
 import { MotivationCarousel } from '@/components/dashboard/motivation-carousel';
+import { LeaderboardTable } from '@/components/leaderboard/leaderboard-table';
 
 export default function DashboardPage() {
   return (
@@ -17,6 +18,7 @@ export default function DashboardPage() {
             <RecommendedMaterials />
           </div>
           <div className="lg:col-span-1 space-y-8">
+            <LeaderboardTable />
             <FeatureShortcuts />
           </div>
         </div>
