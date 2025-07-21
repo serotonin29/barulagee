@@ -1,10 +1,10 @@
 import { MainLayout } from '@/components/layout/main-layout';
-import { InteractiveNotebook } from '@/components/ai-learning/interactive-notebook';
+import { NotebookList } from '@/components/ai-learning/notebook-list';
 
 export default function AILearningPage() {
   return (
-    <MainLayout pageTitle="Belajar dengan AI">
-      <InteractiveNotebook />
+    <MainLayout pageTitle="">
+      <NotebookList />
     </MainLayout>
   );
 }

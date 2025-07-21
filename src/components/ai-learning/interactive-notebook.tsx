@@ -78,7 +78,7 @@ export function InteractiveNotebook() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-10rem)]">
+    <div className="flex flex-col h-[calc(100vh-10rem)] bg-background">
       <div className="flex items-center justify-between p-2 border-b">
         <div className="flex items-center gap-4">
             <div className="flex items-center space-x-2">
