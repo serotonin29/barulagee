@@ -30,8 +30,8 @@ const mainNavItems = [
 ];
 
 const secondaryNavItems = [
-    { href: '#', icon: Users, label: 'Forum' },
-    { href: '#', icon: MessageSquare, label: 'Chat AI' },
+    { href: '/forum', icon: Users, label: 'Forum' },
+    { href: '/chat', icon: MessageSquare, label: 'Chat AI' },
 ]
 
 export function SidebarNav() {
@@ -67,7 +67,7 @@ export function SidebarNav() {
           ))}
           <Separator className="my-2" />
            {secondaryNavItems.map((item) => (
-            <Tooltip key={item.href}>
+            <Tooltip key={item.label}>
               <TooltipTrigger asChild>
                 <Link
                   href={item.href}
@@ -90,7 +90,7 @@ export function SidebarNav() {
              <Tooltip>
               <TooltipTrigger asChild>
                 <Link
-                  href="#"
+                  href="/settings"
                   className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
                 >
                   <Settings className="h-5 w-5" />

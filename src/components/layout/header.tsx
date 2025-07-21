@@ -36,8 +36,8 @@ const navItems = [
     { href: '/materials', icon: BookCopy, label: 'Materi' },
     { href: '/quizzes', icon: FileQuestion, label: 'Quiz' },
     { href: '/bookmarks', icon: Bookmark, label: 'Bookmark' },
-    { href: '#', icon: Users, label: 'Forum' },
-    { href: '#', icon: MessageSquare, label: 'Chat AI' },
+    { href: '/forum', icon: Users, label: 'Forum' },
+    { href: '/chat', icon: MessageSquare, label: 'Chat AI' },
 ];
 
 export function Header({ pageTitle }: { pageTitle: string }) {
@@ -68,7 +68,7 @@ export function Header({ pageTitle }: { pageTitle: string }) {
             </Link>
             {navItems.map((item) => (
                 <Link
-                key={item.href}
+                key={item.label}
                 href={item.href}
                 className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
                 >
@@ -77,7 +77,7 @@ export function Header({ pageTitle }: { pageTitle: string }) {
                 </Link>
             ))}
              <Link
-                href="#"
+                href="/settings"
                 className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
                 >
                 <Settings className="h-5 w-5" />

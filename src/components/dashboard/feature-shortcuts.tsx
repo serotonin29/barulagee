@@ -6,14 +6,14 @@ const shortcutItems = [
   { href: '/materials', icon: BookCopy, label: 'Katalog Materi' },
   { href: '/quizzes', icon: FileQuestion, label: 'Quiz' },
   { href: '/bookmarks', icon: Bookmark, label: 'Bookmark' },
-  { href: '#', icon: MessageSquare, label: 'Chat AI' },
+  { href: '/chat', icon: MessageSquare, label: 'Chat AI' },
 ];
 
 export function FeatureShortcuts() {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       {shortcutItems.map((item) => (
-        <Link href={item.href} key={item.href}>
+        <Link href={item.href} key={item.label}>
           <Card className="hover:bg-accent hover:text-accent-foreground transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{item.label}</CardTitle>
