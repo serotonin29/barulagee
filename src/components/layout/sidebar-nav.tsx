@@ -7,6 +7,9 @@ import {
   BookCopy,
   FileQuestion,
   Bookmark,
+  MessageSquare,
+  Users,
+  Settings,
   BrainCircuit,
 } from 'lucide-react';
 
@@ -17,13 +20,19 @@ import {
   TooltipProvider,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
-const navItems = [
+const mainNavItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/materials', icon: BookCopy, label: 'Materials' },
-  { href: '/quizzes', icon: FileQuestion, label: 'Quizzes' },
-  { href: '/bookmarks', icon: Bookmark, label: 'Bookmarks' },
+  { href: '/materials', icon: BookCopy, label: 'Materi' },
+  { href: '/quizzes', icon: FileQuestion, label: 'Quiz' },
+  { href: '/bookmarks', icon: Bookmark, label: 'Bookmark' },
 ];
+
+const secondaryNavItems = [
+    { href: '#', icon: Users, label: 'Forum' },
+    { href: '#', icon: MessageSquare, label: 'Chat AI' },
+]
 
 export function SidebarNav() {
   const pathname = usePathname();
@@ -39,7 +48,7 @@ export function SidebarNav() {
           <span className="sr-only">NeuroZsis</span>
         </Link>
         <TooltipProvider>
-          {navItems.map((item) => (
+          {mainNavItems.map((item) => (
             <Tooltip key={item.href}>
               <TooltipTrigger asChild>
                 <Link
@@ -56,6 +65,40 @@ export function SidebarNav() {
               <TooltipContent side="right">{item.label}</TooltipContent>
             </Tooltip>
           ))}
+          <Separator className="my-2" />
+           {secondaryNavItems.map((item) => (
+            <Tooltip key={item.href}>
+              <TooltipTrigger asChild>
+                <Link
+                  href={item.href}
+                  className={cn(
+                    'flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8',
+                    pathname.startsWith(item.href) && 'bg-accent text-accent-foreground'
+                  )}
+                >
+                  <item.icon className="h-5 w-5" />
+                  <span className="sr-only">{item.label}</span>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">{item.label}</TooltipContent>
+            </Tooltip>
+          ))}
+        </TooltipProvider>
+      </nav>
+      <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
+        <TooltipProvider>
+             <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  href="#"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
+                >
+                  <Settings className="h-5 w-5" />
+                  <span className="sr-only">Pengaturan</span>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">Pengaturan</TooltipContent>
+            </Tooltip>
         </TooltipProvider>
       </nav>
     </aside>

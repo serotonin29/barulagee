@@ -4,6 +4,7 @@ import type { Material } from '@/types';
 import { materials } from '@/lib/data';
 import { MaterialCard } from '@/components/shared/material-card';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 export function RecommendedMaterials() {
   const [recommended, setRecommended] = useState<Material[]>([]);
@@ -11,7 +12,7 @@ export function RecommendedMaterials() {
   useEffect(() => {
     // In a real app, this would be based on user data.
     // Here we just take a slice of the mock data.
-    setRecommended(materials.slice(0, 2));
+    setRecommended(materials.slice(0, 4));
   }, []);
 
   const handleBookmarkToggle = (id: string) => {
@@ -25,17 +26,19 @@ export function RecommendedMaterials() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Recommended For You</CardTitle>
-        <CardDescription>Materials picked to help you with your studies.</CardDescription>
+        <CardTitle>Rekomendasi Materi</CardTitle>
+        <CardDescription>Materi pilihan untuk membantu studi Anda.</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-1">
             {recommended.map((material) => (
-                <MaterialCard
-                key={material.id}
-                material={material}
-                onBookmarkToggle={handleBookmarkToggle}
-                />
+                <div key={material.id} className="flex items-center gap-4 p-2 rounded-lg border">
+                    <div className="flex-grow">
+                        <p className="font-semibold">{material.title}</p>
+                        <p className="text-sm text-muted-foreground">{material.category}</p>
+                    </div>
+                    <Button>Mulai</Button>
+                </div>
             ))}
         </div>
       </CardContent>

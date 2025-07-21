@@ -6,23 +6,38 @@ import {
   BookCopy,
   FileQuestion,
   Bookmark,
+  MessageSquare,
+  Users,
   BrainCircuit,
   PanelLeft,
+  Settings,
+  LogOut,
+  User,
 } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { SearchHandler } from './search-handler';
 
 const navItems = [
-    { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { href: '/materials', icon: BookCopy, label: 'Materials' },
-    { href: '/quizzes', icon: FileQuestion, label: 'Quizzes' },
-    { href: '/bookmarks', icon: Bookmark, label: 'Bookmarks' },
+    { href: '/materials', icon: BookCopy, label: 'Materi' },
+    { href: '/quizzes', icon: FileQuestion, label: 'Quiz' },
+    { href: '/bookmarks', icon: Bookmark, label: 'Bookmark' },
+    { href: '#', icon: Users, label: 'Forum' },
+    { href: '#', icon: MessageSquare, label: 'Chat AI' },
 ];
 
 export function Header({ pageTitle }: { pageTitle: string }) {
@@ -44,6 +59,13 @@ export function Header({ pageTitle }: { pageTitle: string }) {
               <BrainCircuit className="h-5 w-5 transition-all group-hover:scale-110" />
               <span className="sr-only">NeuroZsis</span>
             </Link>
+            <Link
+                href="/dashboard"
+                className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+                >
+                <LayoutDashboard className="h-5 w-5" />
+                Dashboard
+            </Link>
             {navItems.map((item) => (
                 <Link
                 key={item.href}
@@ -54,15 +76,49 @@ export function Header({ pageTitle }: { pageTitle: string }) {
                 {item.label}
                 </Link>
             ))}
+             <Link
+                href="#"
+                className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+                >
+                <Settings className="h-5 w-5" />
+                Pengaturan
+            </Link>
           </nav>
         </SheetContent>
       </Sheet>
       <div className="flex-1">
         <h1 className="text-xl font-semibold">{pageTitle}</h1>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
         <SearchHandler />
         <ThemeToggle />
+         <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="overflow-hidden rounded-full"
+              >
+                <Avatar>
+                  <AvatarImage src="https://placehold.co/32x32" alt="@shadcn" />
+                  <AvatarFallback><User /></AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Pengaturan</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Logout</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
       </div>
     </header>
   );

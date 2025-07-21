@@ -1,4 +1,4 @@
-import { Bell } from 'lucide-react';
+import { Megaphone } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { announcements } from '@/lib/data';
 
@@ -6,8 +6,8 @@ export function Announcements() {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-lg font-medium">Announcements</CardTitle>
-        <Bell className="h-5 w-5 text-muted-foreground" />
+        <CardTitle className="text-lg font-medium">Pengumuman Penting</CardTitle>
+        <Megaphone className="h-5 w-5 text-muted-foreground" />
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
