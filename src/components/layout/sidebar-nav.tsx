@@ -11,6 +11,8 @@ import {
   Users,
   Settings,
   BrainCircuit,
+  Trophy,
+  Upload,
 } from 'lucide-react';
 
 import {
@@ -27,12 +29,17 @@ const mainNavItems = [
   { href: '/materials', icon: BookCopy, label: 'Materi' },
   { href: '/quizzes', icon: FileQuestion, label: 'Quiz' },
   { href: '/bookmarks', icon: Bookmark, label: 'Bookmark' },
+  { href: '/leaderboard', icon: Trophy, label: 'Papan Peringkat' },
 ];
 
 const secondaryNavItems = [
     { href: '/forum', icon: Users, label: 'Forum' },
     { href: '/chat', icon: MessageSquare, label: 'Chat AI' },
 ]
+
+const adminNavItems = [
+    { href: '/admin/upload', icon: Upload, label: 'Upload Materi' },
+];
 
 export function SidebarNav() {
   const pathname = usePathname();
@@ -67,6 +74,24 @@ export function SidebarNav() {
           ))}
           <Separator className="my-2" />
            {secondaryNavItems.map((item) => (
+            <Tooltip key={item.label}>
+              <TooltipTrigger asChild>
+                <Link
+                  href={item.href}
+                  className={cn(
+                    'flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8',
+                    pathname.startsWith(item.href) && 'bg-accent text-accent-foreground'
+                  )}
+                >
+                  <item.icon className="h-5 w-5" />
+                  <span className="sr-only">{item.label}</span>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">{item.label}</TooltipContent>
+            </Tooltip>
+          ))}
+          <Separator className="my-2" />
+           {adminNavItems.map((item) => (
             <Tooltip key={item.label}>
               <TooltipTrigger asChild>
                 <Link

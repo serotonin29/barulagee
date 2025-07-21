@@ -13,6 +13,8 @@ import {
   Settings,
   LogOut,
   User,
+  Trophy,
+  Upload,
 } from 'lucide-react';
 import {
   Sheet,
@@ -37,8 +39,13 @@ const navItems = [
     { href: '/materials', icon: BookCopy, label: 'Materi' },
     { href: '/quizzes', icon: FileQuestion, label: 'Quiz' },
     { href: '/bookmarks', icon: Bookmark, label: 'Bookmark' },
+    { href: '/leaderboard', icon: Trophy, label: 'Papan Peringkat' },
     { href: '/forum', icon: Users, label: 'Forum' },
     { href: '/chat', icon: MessageSquare, label: 'Chat AI' },
+];
+
+const adminNavItems = [
+    { href: '/admin/upload', icon: Upload, label: 'Upload Materi' },
 ];
 
 export function Header({ pageTitle }: { pageTitle: string }) {
@@ -78,6 +85,18 @@ export function Header({ pageTitle }: { pageTitle: string }) {
                 {item.label}
                 </Link>
             ))}
+            <DropdownMenuSeparator />
+            {adminNavItems.map((item) => (
+                 <Link
+                 key={item.label}
+                 href={item.href}
+                 className={`flex items-center gap-4 px-2.5 ${pathname.startsWith(item.href) ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                 >
+                 <item.icon className="h-5 w-5" />
+                 {item.label}
+                 </Link>
+            ))}
+             <DropdownMenuSeparator />
              <Link
                 href="/settings"
                 className={`flex items-center gap-4 px-2.5 ${pathname === '/settings' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
