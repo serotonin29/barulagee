@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, FileUp, File as FileIcon } from "lucide-react"
-import { ScrollArea } from "../ui/scroll-area"
 import { Card } from "../ui/card"
 import type { DriveItem } from "@/types"
 
@@ -37,111 +36,116 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const [step, setStep] = useState<'method' | 'details'>('method')
   const { toast } = useToast()
 
-  const [gapiLoaded, setGapiLoaded] = useState(false);
-  const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
-  const [oauthToken, setOauthToken] = useState<string | null>(null);
+  const [gapiLoaded, setGapiLoaded] = useState(false)
+  const [pickerApiLoaded, setPickerApiLoaded] = useState(false)
+  const [oauthToken, setOauthToken] = useState<google.accounts.oauth2.TokenResponse | null>(null)
 
-  const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
-  const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
-  const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
+  const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''
+  const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || ''
+  const SCOPES = 'https://www.googleapis.com/auth/drive.readonly'
 
+  // Load Google's GIS and GAPI scripts
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://apis.google.com/js/api.js';
-    script.onload = () => {
-        gapi.load('auth', {'callback': () => setGapiLoaded(true) });
-        gapi.load('picker', {'callback': () => setPickerApiLoaded(true) });
+    const gisiScript = document.createElement('script')
+    gisiScript.src = 'https://accounts.google.com/gsi/client'
+    gisiScript.async = true
+    gisiScript.defer = true
+    gisiScript.onload = () => setGapiLoaded(true)
+    document.body.appendChild(gisiScript)
+
+    const gapiScript = document.createElement('script')
+    gapiScript.src = 'https://apis.google.com/js/api.js'
+    gapiScript.async = true
+    gapiScript.defer = true
+    gapiScript.onload = () => {
+      gapi.load('picker', () => setPickerApiLoaded(true))
     }
-    document.body.appendChild(script);
+    document.body.appendChild(gapiScript)
 
     return () => {
-      document.body.removeChild(script);
+      document.body.removeChild(gisiScript)
+      document.body.removeChild(gapiScript)
     }
-  }, []);
+  }, [])
 
-  const handleAuth = () => {
-    gapi.auth.authorize(
-        {
-            client_id: CLIENT_ID,
-            scope: SCOPES,
-            immediate: false
-        },
-        handleAuthResult
-    );
-  };
-  
-  const handleAuthResult = (authResult: google.auth.GoogleApiOAuth2TokenObject) => {
-    if (authResult && !authResult.error) {
-        setOauthToken(authResult.access_token);
-    } else {
-        toast({
-            variant: "destructive",
-            title: "Authentication Failed",
-            description: "Could not connect to Google Drive. Please try again.",
-        })
+  const handleAuth = useCallback(() => {
+    if (!gapiLoaded) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Google API script not loaded yet.' })
+      return
     }
-  };
 
-  useEffect(() => {
-    if (oauthToken && pickerApiLoaded) {
-      createPicker();
+    const tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: (tokenResponse) => {
+        if (tokenResponse.error) {
+          toast({
+            variant: 'destructive',
+            title: 'Authentication Failed',
+            description: tokenResponse.error_description || 'Could not connect to Google Drive. Please try again.',
+          })
+        } else {
+          setOauthToken(tokenResponse)
+        }
+      },
+    })
+    tokenClient.requestAccessToken()
+  }, [gapiLoaded, toast, CLIENT_ID, SCOPES])
+
+  const createPicker = useCallback(() => {
+    if (!pickerApiLoaded || !oauthToken) {
+      return
     }
-  }, [oauthToken, pickerApiLoaded]);
 
-
-  const createPicker = () => {
-      const picker = new google.picker.PickerBuilder()
-          .addView(google.picker.ViewId.DOCS)
-          .setOAuthToken(oauthToken!)
-          .setDeveloperKey(API_KEY)
-          .setCallback(pickerCallback)
-          .build();
-      picker.setVisible(true);
-  }
-
-  const pickerCallback = (data: google.picker.ResponseObject) => {
-      if (data.action === google.picker.Action.PICKED) {
-          const file = data.docs[0];
-          console.log('File terpilih:', file);
+    const picker = new google.picker.PickerBuilder()
+      .addView(google.picker.ViewId.DOCS)
+      .setOAuthToken(oauthToken.access_token)
+      .setDeveloperKey(API_KEY)
+      .setCallback((data: google.picker.ResponseObject) => {
+        if (data.action === google.picker.Action.PICKED) {
+          const file = data.docs[0]
+          console.log('File terpilih:', file)
           
           const newMaterial: DriveItem = {
               id: file.id,
               name: file.name,
               type: 'file',
-              fileType: file.mimeType.includes('pdf') ? 'pdf' : file.mimeType.includes('video') ? 'video' : 'file',
+              fileType: file.mimeType?.includes('pdf') ? 'pdf' : file.mimeType?.includes('video') ? 'video' : 'file',
               parentId: currentFolderId,
               source: file.url
-          };
+          }
 
-          onMaterialAdd(newMaterial);
+          onMaterialAdd(newMaterial)
           toast({
               title: "Material Terpilih",
               description: `"${file.name}" telah ditambahkan.`,
-          });
-          onClose();
-      }
-  }
+          })
+          onClose()
+        }
+      })
+      .build()
+    picker.setVisible(true)
+  }, [pickerApiLoaded, oauthToken, API_KEY, currentFolderId, onMaterialAdd, toast, onClose])
+
+  useEffect(() => {
+    if (oauthToken && pickerApiLoaded) {
+      createPicker()
+    }
+  }, [oauthToken, pickerApiLoaded, createPicker])
+
 
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
     setUploadMethod(method);
     if (method === 'gdrive') {
-        if (CLIENT_ID && API_KEY) {
-          if (gapiLoaded) {
-            handleAuth();
-          } else {
-            toast({
-                variant: "destructive",
-                title: "API Belum Siap",
-                description: "Google API script belum termuat. Mohon tunggu sebentar.",
-            })
-          }
-        } else {
+        if (!CLIENT_ID || !API_KEY) {
             toast({
                 variant: "destructive",
                 title: "Konfigurasi Diperlukan",
                 description: "Client ID dan API Key Google Drive belum diatur.",
             })
+            return
         }
+        handleAuth()
     } else {
         setStep("details");
     }
