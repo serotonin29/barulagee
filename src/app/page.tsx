@@ -59,6 +59,7 @@ export default function LandingPage() {
 
       <main className="flex-grow">
         <section className="relative text-white bg-blue-600">
+            <div className="absolute inset-0 bg-blue-600" />
             <div className="relative container mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 lg:py-36 flex items-center justify-center text-center">
                 <div className="space-y-8 max-w-3xl">
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight">
@@ -71,12 +72,6 @@ export default function LandingPage() {
                     <Link href="/register" passHref>
                     <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 w-full sm:w-auto">
                         Mulai Belajar &rarr;
-                    </Button>
-                    </Link>
-                    <Link href="/login" passHref>
-                    <Button size="lg" variant="outline" className="text-white border-white bg-white/10 hover:bg-white/20 w-full sm:w-auto">
-                        <GoogleIcon />
-                        Masuk dengan Google
                     </Button>
                     </Link>
                 </div>
