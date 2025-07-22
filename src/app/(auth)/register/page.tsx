@@ -26,7 +26,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { auth, db } from '@/lib/firebase';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, updateProfile, User } from 'firebase/auth';
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, updateProfile, User, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 
@@ -97,12 +97,15 @@ export default function RegisterPage() {
             email: values.email,
             createdAt: new Date(),
         });
+        
+        // Automatically sign in the user after registration
+        await signInWithEmailAndPassword(auth, values.email, values.password);
 
         toast({
             title: "Registration Successful",
-            description: "Please log in and complete your profile.",
+            description: "Please complete your profile to continue.",
         });
-        router.push('/login');
+        router.push('/continue-registration');
 
     } catch (error: any) {
         toast({
