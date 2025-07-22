@@ -38,7 +38,6 @@ import { doc, setDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 
 const perks = [
-    { id: 'anestesiologi', label: 'Anestesiologi', icon: '/perks/Anestesiologi.png' },
     { id: 'alternative-medicine', label: 'Alternative Medicine', icon: '/perks/Alternative Medicine.png' },
     { id: 'biochemistry', label: 'Biochemistry', icon: '/perks/Biochemistry.png' },
     { id: 'dermatology', label: 'Dermatology', icon: '/perks/Dermatology.png' },
@@ -56,6 +55,7 @@ const perks = [
     { id: 'psychiatry', label: 'Psychiatry', icon: '/perks/Psychiatry.png' },
     { id: 'radiology', label: 'Radiology', icon: '/perks/Radiology.png' },
     { id: 'virology', label: 'Virology', icon: '/perks/Virology.png' },
+    { id: 'anestesiologi', label: 'Anestesiologi', icon: '/perks/Anestesiologi.png' },
 ];
 
 
