@@ -37,7 +37,7 @@ export default function LandingPage() {
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32 flex-grow flex items-center justify-center text-center">
         <div className="space-y-8 max-w-3xl">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight">
-            Platform Pembelajaran Ilmu Saraf FK UNP
+            Platform Pembelajaran ilmu kedokteran FK UNP
           </h1>
           <p className="text-lg text-blue-100 max-w-xl mx-auto">
             Akses materi kedokteran, latihan soal, dan bantuan AI untuk mahasiswa Fakultas Kedokteran Universitas Negeri Padang
