@@ -33,7 +33,7 @@ export function MotivationCarousel() {
             <Card className="relative overflow-hidden text-white">
                 <div className="absolute inset-0">
                     <Image 
-                        src="/gedung-unp.jpg" 
+                        src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTLHrZHbkaLi5zw_SOVOlBgJ2jGwrN2AwomJA&s" 
                         alt="Medical background"
                         fill
                         style={{ objectFit: 'cover' }}
