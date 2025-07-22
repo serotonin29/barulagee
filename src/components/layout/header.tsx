@@ -31,7 +31,10 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { SearchHandler } from './search-handler';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { auth } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
+import { signOut } from 'firebase/auth';
 
 const navItems = [
     { href: '/materials', icon: BookCopy, label: 'Materi' },
@@ -45,6 +48,27 @@ const adminNavItems = [];
 
 export function Header({ pageTitle }: { pageTitle: string }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { toast } = useToast();
+  const user = auth.currentUser;
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast({
+        title: "Logout Successful",
+        description: "You have been logged out.",
+      });
+      router.push('/login');
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Logout Failed",
+        description: error.message,
+      });
+    }
+  };
+
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
       <Sheet>
@@ -116,13 +140,13 @@ export function Header({ pageTitle }: { pageTitle: string }) {
                 className="overflow-hidden rounded-full"
               >
                 <Avatar>
-                  <AvatarImage src="https://placehold.co/32x32" alt="User Avatar" data-ai-hint="user avatar" />
+                  <AvatarImage src={user?.photoURL || "https://placehold.co/32x32"} alt={user?.displayName || "User Avatar"} data-ai-hint="user avatar" />
                   <AvatarFallback><User /></AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuLabel>{user?.displayName || 'My Account'}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
                 <Link href="/settings" className="flex items-center w-full">
@@ -131,11 +155,9 @@ export function Header({ pageTitle }: { pageTitle: string }) {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                 <Link href="/login" className="flex items-center w-full">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Logout</span>
-                </Link>
+              <DropdownMenuItem onClick={handleLogout}>
+                 <LogOut className="mr-2 h-4 w-4" />
+                 <span>Logout</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

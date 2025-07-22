@@ -8,7 +8,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import {
-  Card,
   CardContent,
   CardDescription,
   CardFooter,
@@ -27,6 +26,9 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { auth, db } from '@/lib/firebase';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -37,6 +39,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -48,30 +51,63 @@ export default function LoginPage() {
 
   const handleLogin = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
-    // TODO: Implement Firebase email/password login
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log('Login values:', values);
-    toast({
+    try {
+      await signInWithEmailAndPassword(auth, values.email, values.password);
+      toast({
         title: "Login Successful",
         description: "Redirecting to your dashboard...",
-    });
-    router.push('/dashboard');
-    setIsLoading(false);
+      });
+      router.push('/dashboard');
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Login Failed",
+        description: error.message,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    // TODO: Implement Firebase Google login
-    // On first login, check if user exists in Firestore. 
-    // If not, redirect to /auth/continue-registration
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    toast({
-        title: "Google Login Successful",
-        description: "Redirecting to your dashboard...",
-    });
-    router.push('/dashboard');
-    setIsLoading(false);
+    setIsGoogleLoading(true);
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        // First time Google login, need to complete registration
+        await setDoc(userDocRef, {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            createdAt: new Date(),
+        }, { merge: true });
+        router.push('/continue-registration');
+      } else {
+        toast({
+          title: "Google Login Successful",
+          description: "Redirecting to your dashboard...",
+        });
+        router.push('/dashboard');
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Google Login Failed",
+        description: error.message,
+      });
+    } finally {
+      setIsGoogleLoading(false);
+    }
   };
+
+  const anyLoading = isLoading || isGoogleLoading;
 
   return (
     <div className="w-full">
@@ -95,7 +131,7 @@ export default function LoginPage() {
                         type="email"
                         placeholder="your.email@example.com"
                         {...field}
-                        disabled={isLoading}
+                        disabled={anyLoading}
                         />
                     </FormControl>
                     <FormMessage />
@@ -118,14 +154,14 @@ export default function LoginPage() {
                             type="password"
                             placeholder="••••••••"
                             {...field}
-                            disabled={isLoading}
+                            disabled={anyLoading}
                             />
                         </FormControl>
                         <FormMessage />
                     </FormItem>
                 )}
                 />
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" className="w-full" disabled={anyLoading}>
                 {isLoading && <Loader2 className="mr-2 animate-spin" />}
                 Login
                 </Button>
@@ -145,9 +181,9 @@ export default function LoginPage() {
             variant="outline"
             className="w-full"
             onClick={handleGoogleLogin}
-            disabled={isLoading}
+            disabled={anyLoading}
             >
-            {isLoading ? (
+            {isGoogleLoading ? (
                 <Loader2 className="mr-2 animate-spin" />
             ) : (
                 <svg

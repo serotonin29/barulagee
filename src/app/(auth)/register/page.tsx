@@ -8,7 +8,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import {
-  Card,
   CardContent,
   CardDescription,
   CardFooter,
@@ -30,9 +29,13 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { auth, db } from '@/lib/firebase';
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, updateProfile } from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+
 
 const formSchema = z.object({
   fullName: z.string().min(3, { message: 'Full name must be at least 3 characters.' }),
@@ -47,6 +50,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -59,30 +63,79 @@ export default function RegisterPage() {
 
   const handleRegister = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
-    // TODO: Implement Firebase email/password registration
-    // and create user document in Firestore
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log('Register values:', values);
-    toast({
-        title: "Registration Successful",
-        description: "You can now log in with your new account.",
-    });
-    router.push('/login');
-    setIsLoading(false);
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+        const user = userCredential.user;
+
+        await updateProfile(user, { displayName: values.fullName });
+
+        await setDoc(doc(db, "users", user.uid), {
+            uid: user.uid,
+            displayName: values.fullName,
+            email: values.email,
+            role: values.role,
+            createdAt: new Date(),
+        });
+
+        toast({
+            title: "Registration Successful",
+            description: "You can now log in with your new account.",
+        });
+        router.push('/login');
+
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Registration Failed",
+            description: error.message,
+        });
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   const handleGoogleRegister = async () => {
-    setIsLoading(true);
-    // TODO: Implement Firebase Google login
-    // Redirect to /auth/continue-registration to complete profile
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    toast({
-        title: "Account Created with Google",
-        description: "Please complete your registration.",
-    });
-    router.push('/auth/continue-registration');
-    setIsLoading(false);
+    setIsGoogleLoading(true);
+    const provider = new GoogleAuthProvider();
+    try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        if (userDoc.exists()) {
+            toast({
+                title: "Login Successful",
+                description: "An account with this Google account already exists. Logging you in.",
+            });
+            router.push('/dashboard');
+        } else {
+            await setDoc(userDocRef, {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                photoURL: user.photoURL,
+                createdAt: new Date(),
+            });
+            toast({
+                title: "Account Created with Google",
+                description: "Please complete your registration.",
+            });
+            router.push('/continue-registration');
+        }
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Google Sign-Up Failed",
+            description: error.message,
+        });
+    } finally {
+        setIsGoogleLoading(false);
+    }
   };
+
+  const anyLoading = isLoading || isGoogleLoading;
 
   return (
     <div className="w-full">
@@ -102,7 +155,7 @@ export default function RegisterPage() {
                     <FormItem>
                     <FormLabel>Nama Lengkap</FormLabel>
                     <FormControl>
-                        <Input placeholder="John Doe" {...field} disabled={isLoading} />
+                        <Input placeholder="John Doe" {...field} disabled={anyLoading} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
@@ -119,7 +172,7 @@ export default function RegisterPage() {
                         type="email"
                         placeholder="your.email@example.com"
                         {...field}
-                        disabled={isLoading}
+                        disabled={anyLoading}
                         />
                     </FormControl>
                     <FormMessage />
@@ -137,7 +190,7 @@ export default function RegisterPage() {
                         type="password"
                         placeholder="••••••••"
                         {...field}
-                        disabled={isLoading}
+                        disabled={anyLoading}
                         />
                     </FormControl>
                     <FormMessage />
@@ -150,7 +203,7 @@ export default function RegisterPage() {
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Peran</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={anyLoading}>
                         <FormControl>
                         <SelectTrigger>
                             <SelectValue placeholder="Pilih peran Anda" />
@@ -166,7 +219,7 @@ export default function RegisterPage() {
                     </FormItem>
                 )}
                 />
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" className="w-full" disabled={anyLoading}>
                 {isLoading && <Loader2 className="mr-2 animate-spin" />}
                 Buat Akun
                 </Button>
@@ -186,9 +239,9 @@ export default function RegisterPage() {
             variant="outline"
             className="w-full"
             onClick={handleGoogleRegister}
-            disabled={isLoading}
+            disabled={anyLoading}
             >
-            {isLoading ? (
+            {isGoogleLoading ? (
                 <Loader2 className="mr-2 animate-spin" />
             ) : (
                 <svg

@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import {
-  Card,
   CardContent,
   CardDescription,
   CardHeader,
@@ -27,9 +26,12 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 const formSchema = z.object({
   role: z.enum(['mahasiswa', 'dosen'], {
@@ -41,25 +43,58 @@ export default function ContinueRegistrationPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState(auth.currentUser);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        // If no user is logged in, redirect to login
+        router.push('/login');
+      }
+    });
+    return () => unsubscribe();
+  }, [router]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
   });
 
   const handleContinue = async (values: z.infer<typeof formSchema>) => {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No user is logged in.' });
+        return;
+    }
+
     setIsLoading(true);
-    // TODO: 
-    // 1. Get current Firebase user.
-    // 2. Update the user's document in Firestore with the selected role.
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log('Selected role:', values.role);
-    toast({
-        title: "Registration Complete!",
-        description: "Redirecting to your dashboard...",
-    });
-    router.push('/dashboard');
-    setIsLoading(false);
+    try {
+        const userDocRef = doc(db, 'users', user.uid);
+        await setDoc(userDocRef, { role: values.role }, { merge: true });
+
+        toast({
+            title: "Registration Complete!",
+            description: "Redirecting to your dashboard...",
+        });
+        router.push('/dashboard');
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Update Failed',
+            description: error.message,
+        });
+    } finally {
+        setIsLoading(false);
+    }
   };
+  
+  if (!user) {
+    return (
+        <div className="flex justify-center items-center h-full">
+            <Loader2 className="animate-spin" />
+        </div>
+    )
+  }
 
   return (
     <div className="w-full">
