@@ -106,7 +106,7 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
                                     </DialogDescription>
                                 </DialogHeader>
                                 <Form {...form}>
-                                    <form onSubmit={form.handleSubmit(handleCreateFolderSubmit)} className="space-y-4">
+                                    <form onSubmit={form.handleSubmit(handleCreateFolderSubmit)} className="space-y-4 pt-4">
                                         <FormField
                                             control={form.control}
                                             name="name"
@@ -143,12 +143,14 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-[625px]">
                                 <DialogHeader>
-                                    <DialogTitle>Formulir Upload Materi</DialogTitle>
+                                    <DialogTitle>Tambahkan Materi Pembelajaran</DialogTitle>
                                     <DialogDescription>
-                                        Isi detail di bawah ini untuk menambahkan materi pembelajaran baru ke sistem.
+                                        Unggah file, impor dari Google Drive, atau sematkan dari URL.
                                     </DialogDescription>
                                 </DialogHeader>
-                                <UploadMaterialForm />
+                                <div className="pt-4">
+                                    <UploadMaterialForm />
+                                </div>
                             </DialogContent>
                         </Dialog>
                     </div>
