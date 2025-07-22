@@ -4,13 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Brain, BrainCircuit, Stethoscope, Plus, Moon, Bell, ChevronDown } from 'lucide-react';
 
-const StarIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-  </svg>
-);
-
-
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg {...props} className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
         <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 126 23.4 172.9 61.9l-69.2 67.4c-20.5-19.3-48.8-31.2-81.6-31.2-74.2 0-134.4 60.2-134.4 134.4s60.2 134.4 134.4 134.4c83.3 0 119.2-61.2 123.5-92.4H248v-83.3h239.9c1.6 10.1 2.5 20.9 2.5 32.2z"></path>
@@ -19,7 +12,7 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 export default function LandingPage() {
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-blue-400 to-blue-600 text-white">
+    <div className="w-full min-h-screen bg-gradient-to-br from-blue-400 to-blue-600 text-white flex flex-col">
       <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="bg-white/90 rounded-full p-2">
@@ -57,7 +50,7 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32 grid lg:grid-cols-2 gap-16 items-center">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32 grid lg:grid-cols-2 gap-16 items-center flex-grow">
         <div className="space-y-8">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight">
             Platform Pembelajaran Ilmu Saraf FK UNP
@@ -72,38 +65,11 @@ export default function LandingPage() {
               </Button>
             </Link>
             <Link href="/login" passHref>
-              <Button size="lg" variant="outline" className="text-white border-white hover:bg-white/20 w-full sm:w-auto">
+              <Button size="lg" variant="outline" className="text-white border-white bg-white/10 hover:bg-white/20 w-full sm:w-auto">
                 <GoogleIcon />
                 Masuk dengan Google
               </Button>
             </Link>
-          </div>
-          <div className="flex items-center gap-4 pt-4">
-            <div className="flex -space-x-2">
-              <Avatar>
-                <AvatarImage src="https://placehold.co/40x40" data-ai-hint="student avatar" />
-                <AvatarFallback>U1</AvatarFallback>
-              </Avatar>
-              <Avatar>
-                <AvatarImage src="https://placehold.co/40x40" data-ai-hint="student avatar" />
-                <AvatarFallback>U2</AvatarFallback>
-              </Avatar>
-               <Avatar>
-                <AvatarImage src="https://placehold.co/40x40" data-ai-hint="student avatar" />
-                <AvatarFallback>U3</AvatarFallback>
-              </Avatar>
-            </div>
-            <div>
-                <p className="font-semibold">Bergabung dengan 500+ mahasiswa lainnya</p>
-                <div className="flex items-center gap-1">
-                    <StarIcon className="w-5 h-5 text-yellow-400 fill-yellow-400" />
-                    <StarIcon className="w-5 h-5 text-yellow-400 fill-yellow-400" />
-                    <StarIcon className="w-5 h-5 text-yellow-400 fill-yellow-400" />
-                    <StarIcon className="w-5 h-5 text-yellow-400 fill-yellow-400" />
-                    <StarIcon className="w-5 h-5 text-yellow-400 fill-current" />
-                    <span className="ml-1 text-sm font-medium text-blue-100">4.8/5.0</span>
-                </div>
-            </div>
           </div>
         </div>
         <div className="relative">
@@ -132,6 +98,17 @@ export default function LandingPage() {
            <div className="absolute -top-8 -left-8 w-40 h-40 bg-blue-400/50 rounded-full blur-3xl -z-10"></div>
         </div>
       </main>
+      
+      <footer className="w-full text-center text-blue-200 text-sm py-6">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <p>© 2024 NeuroZsis. All Rights Reserved.</p>
+              <p>
+                  <Link href="/privacy" className="hover:text-white">Privacy Policy</Link>
+                  <span className="mx-2">|</span>
+                  <Link href="/terms" className="hover:text-white">Terms of Service</Link>
+              </p>
+          </div>
+      </footer>
     </div>
   );
 }
