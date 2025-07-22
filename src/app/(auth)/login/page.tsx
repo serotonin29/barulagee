@@ -27,7 +27,7 @@ import { Separator } from '@/components/ui/separator';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { auth, db } from '@/lib/firebase';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, User } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const formSchema = z.object({
@@ -49,15 +49,40 @@ export default function LoginPage() {
     },
   });
 
+  const checkUserProfileAndRedirect = async (user: User) => {
+    const userDocRef = doc(db, 'users', user.uid);
+    const userDoc = await getDoc(userDocRef);
+
+    if (userDoc.exists() && userDoc.data()?.role) {
+        toast({
+            title: "Login Successful",
+            description: "Redirecting to your dashboard...",
+        });
+        router.push('/dashboard');
+    } else {
+        // If user doc exists but no role, or doc doesn't exist at all.
+        // This case is important for users who signed up but didn't complete registration.
+        await setDoc(userDocRef, {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+        }, { merge: true });
+        
+        toast({
+            title: "Almost there!",
+            description: "Please complete your profile to continue.",
+        });
+        router.push('/continue-registration');
+    }
+  };
+
+
   const handleLogin = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
-      toast({
-        title: "Login Successful",
-        description: "Redirecting to your dashboard...",
-      });
-      router.push('/dashboard');
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      await checkUserProfileAndRedirect(userCredential.user);
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -74,28 +99,7 @@ export default function LoginPage() {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists()) {
-        // First time Google login, need to complete registration
-        await setDoc(userDocRef, {
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            photoURL: user.photoURL,
-            createdAt: new Date(),
-        }, { merge: true });
-        router.push('/continue-registration');
-      } else {
-        toast({
-          title: "Google Login Successful",
-          description: "Redirecting to your dashboard...",
-        });
-        router.push('/dashboard');
-      }
+      await checkUserProfileAndRedirect(result.user);
     } catch (error: any) {
       toast({
         variant: "destructive",
