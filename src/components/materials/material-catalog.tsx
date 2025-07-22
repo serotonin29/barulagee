@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import type { Material } from '@/types';
-import { materials as allMaterials } from '@/lib/data';
+import { allMaterials } from '@/lib/data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MaterialCard } from '@/components/shared/material-card';
 

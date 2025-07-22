@@ -10,7 +10,6 @@ import {
   Users,
   Settings,
   BrainCircuit,
-  Upload,
   Sparkles,
 } from 'lucide-react';
 
@@ -35,9 +34,7 @@ const secondaryNavItems = [
     { href: '/ai-learning', icon: Sparkles, label: 'Belajar dengan AI' },
 ]
 
-const adminNavItems = [
-    { href: '/admin/upload', icon: Upload, label: 'Upload Materi' },
-];
+const adminNavItems = [];
 
 export function SidebarNav() {
   const pathname = usePathname();
@@ -88,7 +85,7 @@ export function SidebarNav() {
               <TooltipContent side="right">{item.label}</TooltipContent>
             </Tooltip>
           ))}
-          <Separator className="my-2" />
+          {adminNavItems.length > 0 && <Separator className="my-2" />}
            {adminNavItems.map((item) => (
             <Tooltip key={item.label}>
               <TooltipTrigger asChild>

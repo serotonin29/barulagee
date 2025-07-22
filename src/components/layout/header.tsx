@@ -12,7 +12,6 @@ import {
   Settings,
   LogOut,
   User,
-  Upload,
   Sparkles,
 } from 'lucide-react';
 import {
@@ -42,9 +41,7 @@ const navItems = [
     { href: '/forum', icon: Users, label: 'Forum' },
 ];
 
-const adminNavItems = [
-    { href: '/admin/upload', icon: Upload, label: 'Upload Materi' },
-];
+const adminNavItems = [];
 
 export function Header({ pageTitle }: { pageTitle: string }) {
   const pathname = usePathname();
@@ -83,7 +80,7 @@ export function Header({ pageTitle }: { pageTitle: string }) {
                 {item.label}
                 </Link>
             ))}
-            <DropdownMenuSeparator />
+            {adminNavItems.length > 0 && <DropdownMenuSeparator />}
             {adminNavItems.map((item) => (
                  <Link
                  key={item.label}

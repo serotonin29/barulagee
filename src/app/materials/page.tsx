@@ -1,10 +1,10 @@
 import { MainLayout } from '@/components/layout/main-layout';
-import { MaterialCatalog } from '@/components/materials/material-catalog';
+import { MaterialsClientPage } from '@/components/materials/materials-client-page';
 
 export default function MaterialsPage() {
   return (
-    <MainLayout pageTitle="Material Catalog">
-      <MaterialCatalog />
+    <MainLayout pageTitle="Katalog Materi">
+      <MaterialsClientPage />
     </MainLayout>
   );
 }
