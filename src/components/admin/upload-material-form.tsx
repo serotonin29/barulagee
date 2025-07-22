@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { useState, useEffect, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -38,7 +39,6 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
   const [oauthToken, setOauthToken] = useState<google.accounts.oauth2.TokenResponse | null>(null);
   
-  // Store tokenClient in a ref to avoid re-initialization on every render
   const tokenClientRef = React.useRef<google.accounts.oauth2.TokenClient | null>(null);
 
   const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
