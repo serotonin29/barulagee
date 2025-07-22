@@ -58,13 +58,23 @@ export default function LandingPage() {
       </header>
 
       <main className="flex-grow">
-        <section className="bg-gradient-to-br from-blue-400 to-blue-600 text-white">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 lg:py-36 flex items-center justify-center text-center">
+        <section className="relative text-white">
+            <div className="absolute inset-0">
+                <Image 
+                    src="/hero-background.png" 
+                    alt="Background of medical students"
+                    fill
+                    style={{ objectFit: 'cover' }}
+                    className="brightness-50"
+                    data-ai-hint="medical students studying"
+                />
+            </div>
+            <div className="relative container mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 lg:py-36 flex items-center justify-center text-center">
                 <div className="space-y-8 max-w-3xl">
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight">
                     Platform Pembelajaran ilmu kedokteran FK UNP
                 </h1>
-                <p className="text-lg text-blue-100 max-w-xl mx-auto">
+                <p className="text-lg text-gray-200 max-w-xl mx-auto">
                     Akses materi kedokteran, latihan soal, dan bantuan AI untuk mahasiswa Fakultas Kedokteran Universitas Negeri Padang
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
