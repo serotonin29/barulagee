@@ -197,28 +197,30 @@ export default function ContinueRegistrationPage() {
                 render={({ field }) => (
                     <FormItem>
                         <FormLabel>Minat Spesialisasi</FormLabel>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-2">
-                        {perks.map((perk) => {
-                            const isSelected = field.value?.includes(perk.id);
-                            return (
-                                <Card
-                                    key={perk.id}
-                                    onClick={() => {
-                                        const newValue = isSelected
-                                        ? field.value.filter((id) => id !== perk.id)
-                                        : [...field.value, perk.id];
-                                        field.onChange(newValue);
-                                    }}
-                                    className={cn(
-                                        "p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all",
-                                        isSelected ? "ring-2 ring-primary bg-primary/10" : "hover:bg-accent"
-                                    )}
-                                >
-                                    <Image src={perk.icon} alt={perk.label} width={48} height={48} className="h-12 w-12" />
-                                    <span className="text-sm font-medium text-center">{perk.label}</span>
-                                </Card>
-                            );
-                        })}
+                        <div className="relative">
+                            <div className="flex space-x-4 pt-2 overflow-x-auto pb-4">
+                            {perks.map((perk) => {
+                                const isSelected = field.value?.includes(perk.id);
+                                return (
+                                    <Card
+                                        key={perk.id}
+                                        onClick={() => {
+                                            const newValue = isSelected
+                                            ? field.value.filter((id) => id !== perk.id)
+                                            : [...field.value, perk.id];
+                                            field.onChange(newValue);
+                                        }}
+                                        className={cn(
+                                            "p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all flex-shrink-0 w-32 h-32",
+                                            isSelected ? "ring-2 ring-primary bg-primary/10" : "hover:bg-accent"
+                                        )}
+                                    >
+                                        <Image src={perk.icon} alt={perk.label} width={48} height={48} className="h-12 w-12" />
+                                        <span className="text-sm font-medium text-center">{perk.label}</span>
+                                    </Card>
+                                );
+                            })}
+                            </div>
                         </div>
                         <FormMessage />
                     </FormItem>
