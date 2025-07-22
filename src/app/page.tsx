@@ -20,46 +20,30 @@ export default function LandingPage() {
           </div>
           <span className="text-2xl font-bold">NeuroZsis</span>
         </div>
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-          <Link href="/dashboard" className="hover:text-blue-200">Dashboard</Link>
-          <Link href="/materials" className="hover:text-blue-200">Materi</Link>
-          <Link href="/quizzes" className="hover:text-blue-200">Quiz</Link>
-          <Link href="/forum" className="hover:text-blue-200">Forum</Link>
-          <Link href="/ai-learning" className="hover:text-blue-200">AI Tutor</Link>
-        </nav>
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="hover:bg-white/20">
-            <Moon className="h-5 w-5" />
-          </Button>
-          <div className="relative">
-            <Button variant="ghost" size="icon" className="hover:bg-white/20">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <span className="absolute top-0 right-0 flex h-4 w-4">
-                <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 text-xs text-white items-center justify-center">3</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src="https://placehold.co/32x32" alt="Mahasiswa" data-ai-hint="user avatar" />
-              <AvatarFallback>M</AvatarFallback>
-            </Avatar>
-            <span className="hidden sm:inline">Mahasiswa</span>
-            <ChevronDown className="h-4 w-4 hidden sm:inline" />
-          </div>
+            <Link href="/login" passHref>
+                <Button variant="ghost" className="hover:bg-white/20 hidden md:inline-flex">
+                    Login
+                </Button>
+            </Link>
+            <Link href="/register" passHref>
+                <Button className="bg-white text-blue-600 hover:bg-blue-50 hidden md:inline-flex">
+                    Daftar Sekarang
+                </Button>
+            </Link>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32 grid lg:grid-cols-2 gap-16 items-center flex-grow">
-        <div className="space-y-8">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32 flex-grow flex items-center justify-center text-center">
+        <div className="space-y-8 max-w-3xl">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight">
             Platform Pembelajaran Ilmu Saraf FK UNP
           </h1>
-          <p className="text-lg text-blue-100 max-w-xl">
+          <p className="text-lg text-blue-100 max-w-xl mx-auto">
             Akses materi kedokteran, latihan soal, dan bantuan AI untuk mahasiswa Fakultas Kedokteran Universitas Negeri Padang
           </p>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Link href="/login" passHref>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/register" passHref>
               <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 w-full sm:w-auto">
                 Mulai Belajar &rarr;
               </Button>
@@ -71,31 +55,6 @@ export default function LandingPage() {
               </Button>
             </Link>
           </div>
-        </div>
-        <div className="relative">
-          <div className="bg-white/20 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
-            <div className="flex justify-between items-center mb-6">
-                <div className="p-3 bg-white/30 rounded-lg"><Plus className="h-6 w-6"/></div>
-                <div className="p-3 bg-white/30 rounded-lg"><Brain className="h-6 w-6"/></div>
-                <div className="p-3 bg-white/30 rounded-lg"><Stethoscope className="h-6 w-6"/></div>
-            </div>
-            <h2 className="text-3xl font-bold mb-3">Anatomi Sistem Saraf</h2>
-            <p className="text-blue-100 mb-6">
-                Pelajari struktur dan fungsi sistem saraf manusia melalui modul interaktif dan visualisasi 3D.
-            </p>
-             <div className="flex items-center gap-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src="https://placehold.co/48x48" alt="Dr. Siti Rahayu, M.Kes" data-ai-hint="doctor person" />
-                  <AvatarFallback>SR</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-semibold">Dr. Siti Rahayu, M.Kes</p>
-                  <p className="text-sm text-blue-200">Dosen Anatomi FK UNP</p>
-                </div>
-            </div>
-          </div>
-          <div className="absolute -bottom-8 -right-8 w-40 h-40 bg-blue-400/50 rounded-full blur-3xl -z-10"></div>
-           <div className="absolute -top-8 -left-8 w-40 h-40 bg-blue-400/50 rounded-full blur-3xl -z-10"></div>
         </div>
       </main>
       
