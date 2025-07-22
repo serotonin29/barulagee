@@ -1,4 +1,26 @@
-import type { Material, Quiz, Announcement, ForumThread, ForumReply } from '@/types';
+import type { Material, Quiz, Announcement, ForumThread, ForumReply, DriveItem } from '@/types';
+
+export const driveItems: DriveItem[] = [
+  // Root level folders
+  { id: 'folder-anatomi', name: 'Anatomi', type: 'folder', parentId: null },
+  { id: 'folder-fisiologi', name: 'Fisiologi', type: 'folder', parentId: null },
+  { id: 'folder-neurologi', name: 'Neurologi', type: 'folder', parentId: null },
+
+  // Root level file
+  { id: 'file-kurikulum', name: 'Kurikulum 2024.pdf', type: 'file', fileType: 'pdf', parentId: null },
+
+  // Inside Anatomi
+  { id: 'folder-anatomi-kepala', name: 'Kepala & Leher', type: 'folder', parentId: 'folder-anatomi' },
+  { id: 'file-anatomi-umum', name: 'Pengantar Anatomi Umum.mp4', type: 'file', fileType: 'video', parentId: 'folder-anatomi' },
+
+  // Inside Fisiologi
+  { id: 'file-fisiologi-sel', name: 'Fisiologi Sel.pdf', type: 'file', fileType: 'pdf', parentId: 'folder-fisiologi' },
+  { id: 'file-sistem-kardio', name: 'Infografik Kardiovaskular.png', type: 'file', fileType: 'image', parentId: 'folder-fisiologi', coverImage: 'https://placehold.co/600x400', dataAiHint: 'cardiovascular system' },
+
+  // Inside Anatomi > Kepala & Leher
+  { id: 'file-anatomi-otak', name: 'Struktur Otak.pdf', type: 'file', fileType: 'pdf', parentId: 'folder-anatomi-kepala' },
+];
+
 
 export const materials: Material[] = [
   {

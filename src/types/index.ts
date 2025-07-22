@@ -10,6 +10,19 @@ export type Material = {
   dataAiHint: string;
 };
 
+export type DriveItem = {
+  id: string;
+  name: string;
+  type: 'folder' | 'file';
+  parentId: string | null;
+  // File-specific properties
+  fileType?: 'video' | 'pdf' | 'infographic' | 'text' | 'image';
+  source?: string; // URL or identifier
+  coverImage?: string;
+  dataAiHint?: string;
+};
+
+
 export type Question = {
   id: string;
   text: string;
