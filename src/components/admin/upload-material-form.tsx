@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -19,17 +19,6 @@ const formSchema = z.object({
   localFile: z.any().optional(),
 });
 
-type DriveFile = { id: string; name: string; type: string };
-
-const dummyDriveFiles: DriveFile[] = [
-    { id: '1', name: 'Neuroanatomy Lecture Notes.pdf', type: 'pdf' },
-    { id: '2', name: 'Cardiology Seminar.mp4', type: 'video' },
-    { id: '3', name: 'Project Outline - Group A', type: 'doc' },
-    { id: '4', name: 'Shared Research Papers', type: 'folder' },
-    { id: '5', name: 'Clinical Case Studies.pptx', type: 'ppt' },
-    { id: '6', name: 'Anatomy Atlas Scans', type: 'folder' },
-]
-
 type UploadMaterialFormProps = {
   onMaterialAdd: (material: DriveItem) => void;
   onClose: () => void;
@@ -45,15 +34,134 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: UploadMaterialFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [uploadMethod, setUploadMethod] = useState<"local" | "gdrive" | "embed" | null>(null)
-  const [selectedDriveFile, setSelectedDriveFile] = useState<DriveFile | null>(null)
   const [step, setStep] = useState<'method' | 'details'>('method')
-  const [isConnecting, setIsConnecting] = useState(false);
   const { toast } = useToast()
+
+  const [gapiLoaded, setGapiLoaded] = useState(false);
+  const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
+  const [oauthToken, setOauthToken] = useState<string | null>(null);
+
+  const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || 'YOUR_CLIENT_ID';
+  const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || 'YOUR_API_KEY';
+  const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
+
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://apis.google.com/js/api.js';
+    script.onload = () => gapi.load('picker', () => setGapiLoaded(true));
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    }
+  }, []);
+
+  const handleAuth = () => {
+    gapi.load('auth', { 'callback': () => {
+        gapi.auth.authorize(
+            {
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                immediate: false
+            },
+            handleAuthResult
+        );
+    }});
+  };
+  
+  const handleAuthResult = (authResult: google.auth.GoogleApiOAuth2TokenObject) => {
+    if (authResult && !authResult.error) {
+        setOauthToken(authResult.access_token);
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Authentication Failed",
+            description: "Could not connect to Google Drive. Please try again.",
+        })
+    }
+  };
+
+  useEffect(() => {
+    if (oauthToken && gapiLoaded) {
+      createPicker();
+    }
+  }, [oauthToken, gapiLoaded]);
+
+
+  const createPicker = () => {
+      const picker = new google.picker.PickerBuilder()
+          .addView(google.picker.ViewId.DOCS)
+          .setOAuthToken(oauthToken!)
+          .setDeveloperKey(API_KEY)
+          .setCallback(pickerCallback)
+          .build();
+      picker.setVisible(true);
+  }
+
+  const pickerCallback = (data: google.picker.ResponseObject) => {
+      if (data.action === google.picker.Action.PICKED) {
+          const file = data.docs[0];
+          console.log('File terpilih:', file);
+          
+          const newMaterial: DriveItem = {
+              id: file.id,
+              name: file.name,
+              type: 'file',
+              fileType: 'pdf', // Placeholder, could be derived from file.mimeType
+              parentId: currentFolderId,
+              source: file.url
+          };
+
+          onMaterialAdd(newMaterial);
+          toast({
+              title: "Material Terpilih",
+              description: `"${file.name}" telah ditambahkan.`,
+          });
+          onClose();
+      }
+  }
+
+  const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
+    setUploadMethod(method);
+    if (method === 'gdrive') {
+        if (!CLIENT_ID.startsWith('YOUR_') && !API_KEY.startsWith('YOUR_')) {
+          handleAuth();
+        } else {
+            toast({
+                variant: "destructive",
+                title: "Konfigurasi Diperlukan",
+                description: "Client ID dan API Key Google Drive belum diatur.",
+            })
+        }
+    } else {
+        setStep("details");
+    }
+  }
+
+  const renderMethodStep = () => (
+    <div className="space-y-4 text-center">
+        <h3 className="font-medium">Pilih Metode Unggah Materi</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+            <Card onClick={() => handleSelectMethod('local')} className="p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent transition-colors h-32">
+                <FileUp className="w-8 h-8 text-primary"/>
+                <span className="text-sm font-medium text-center">File Lokal</span>
+            </Card>
+             <Card onClick={() => handleSelectMethod('gdrive')} className="p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent transition-colors h-32">
+                <GoogleIcon className="w-8 h-8"/>
+                <span className="text-sm font-medium text-center">Google Drive</span>
+            </Card>
+             <Card onClick={() => handleSelectMethod('embed')} className="p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent transition-colors h-32">
+                <FileIcon className="w-8 h-8 text-primary"/>
+                <span className="text-sm font-medium text-center">Embed URL</span>
+            </Card>
+        </div>
+    </div>
+  )
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema)
-  })
-
+  });
+  
   async function onSubmit() {
     setIsSubmitting(true)
     
@@ -66,10 +174,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     
     const values = form.getValues();
 
-    if (uploadMethod === 'gdrive' && selectedDriveFile) {
-        submissionData.name = selectedDriveFile.name;
-        submissionData.fileType = 'pdf'; // Placeholder
-    } else if (uploadMethod === 'embed' && values.fileUrl) {
+    if (uploadMethod === 'embed' && values.fileUrl) {
         submissionData.name = new URL(values.fileUrl).hostname;
         submissionData.fileType = 'video'; // Placeholder
     } else if (uploadMethod === 'local' && values.localFile) {
@@ -91,78 +196,13 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     
     setIsSubmitting(false)
     form.reset()
-    setSelectedDriveFile(null)
     setUploadMethod(null)
     setStep('method');
     onClose();
   }
-  
-  const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
-    setUploadMethod(method);
-    form.setValue("uploadMethod", method);
-    if (method === 'gdrive') {
-        handleConnectDrive();
-    } else {
-        setStep("details");
-    }
-  }
 
-  const handleConnectDrive = () => {
-    setIsConnecting(true);
-    setTimeout(() => {
-        setIsConnecting(false);
-        setStep("details");
-    }, 1500);
-  }
-
-  const renderMethodStep = () => (
-    <div className="space-y-4 text-center">
-        <h3 className="font-medium">Pilih Metode Unggah Materi</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
-            <Card onClick={() => handleSelectMethod('local')} className="p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent transition-colors h-32">
-                <FileUp className="w-8 h-8 text-primary"/>
-                <span className="text-sm font-medium text-center">File Lokal</span>
-            </Card>
-             <Card onClick={() => handleSelectMethod('gdrive')} className="p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent transition-colors h-32">
-                {isConnecting ? <Loader2 className="w-8 h-8 animate-spin" /> : <GoogleIcon className="w-8 h-8"/>}
-                <span className="text-sm font-medium text-center">Google Drive</span>
-            </Card>
-             <Card onClick={() => handleSelectMethod('embed')} className="p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent transition-colors h-32">
-                <FileUp className="w-8 h-8 text-primary"/>
-                <span className="text-sm font-medium text-center">Embed URL</span>
-            </Card>
-        </div>
-    </div>
-  )
-  
   const renderDetailsStep = () => {
     if (!uploadMethod) return null;
-
-    const renderDriveContent = () => (
-        <div>
-            <p className="text-sm font-medium mb-2">Pilih file dari Drive Anda (Simulasi):</p>
-            <ScrollArea className="h-64 rounded-md border">
-                <div className="p-2 space-y-1">
-                    {dummyDriveFiles.map(file => (
-                        <div 
-                            key={file.id} 
-                            onClick={() => setSelectedDriveFile(file)}
-                            className={`flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-accent ${selectedDriveFile?.id === file.id ? 'bg-accent' : ''}`}
-                        >
-                            <FileIcon className="h-5 w-5 text-muted-foreground" />
-                            <span className="text-sm flex-grow">{file.name}</span>
-                        </div>
-                    ))}
-                </div>
-            </ScrollArea>
-            {selectedDriveFile && (
-                 <div className="mt-4 p-3 border rounded-lg bg-muted/50">
-                    <p className="text-sm font-medium">File terpilih:</p>
-                    <p className="text-sm text-primary">{selectedDriveFile.name}</p>
-                 </div>
-            )}
-        </div>
-    );
 
     return (
         <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="space-y-4">
@@ -184,11 +224,9 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
                 </div>
             )}
 
-            {uploadMethod === 'gdrive' && renderDriveContent()}
-
              <div className="flex justify-between items-center pt-4">
                 <Button variant="ghost" onClick={() => setStep('method')}>Kembali</Button>
-                <Button type="submit" disabled={isSubmitting || (uploadMethod === 'gdrive' && !selectedDriveFile)}>
+                <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Simpan Materi
                 </Button>
@@ -199,7 +237,4 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   
   return (
     <div>
-        {step === 'method' ? renderMethodStep() : renderDetailsStep()}
-    </div>
-  )
-}
+        {step === 'method' ? renderMethod

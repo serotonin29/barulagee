@@ -24,6 +24,6 @@ const nextConfig: NextConfig = {
       }
     ],
   },
-};
-
-export default nextConfig;
+  env: {
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+    NEXT_PUBLIC_GOOGLE_API_KEY: process.env.NEXT
