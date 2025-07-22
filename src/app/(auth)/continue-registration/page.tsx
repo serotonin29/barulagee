@@ -62,14 +62,14 @@ export default function ContinueRegistrationPage() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>One Last Step</CardTitle>
+    <div className="w-full">
+      <CardHeader className="text-center px-0">
+        <CardTitle className="text-3xl">Satu Langkah Lagi</CardTitle>
         <CardDescription>
-          Please select your role to complete your registration.
+          Pilih peran Anda untuk menyelesaikan registrasi.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-0">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleContinue)} className="space-y-6">
              <FormField
@@ -77,11 +77,11 @@ export default function ContinueRegistrationPage() {
               name="role"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Your Role</FormLabel>
+                  <FormLabel>Peran Anda</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="I am a..." />
+                        <SelectValue placeholder="Saya adalah..." />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -95,11 +95,11 @@ export default function ContinueRegistrationPage() {
             />
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 animate-spin" />}
-              Complete Registration & Go to Dashboard
+              Selesaikan & Lanjut ke Dashboard
             </Button>
           </form>
         </Form>
       </CardContent>
-    </Card>
+    </div>
   );
 }
