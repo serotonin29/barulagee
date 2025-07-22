@@ -13,7 +13,6 @@ import { Card } from "../ui/card"
 import type { DriveItem } from "@/types"
 
 const formSchema = z.object({
-  uploadMethod: z.enum(["local", "gdrive", "embed"]),
   fileUrl: z.string().url().optional(),
   localFile: z.any().optional(),
 });
@@ -36,11 +35,11 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const [step, setStep] = useState<'method' | 'details'>('method')
   const { toast } = useToast()
 
-  const [gapiLoaded, setGapiLoaded] = useState(false);
   const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
   const [oauthToken, setOauthToken] = useState<google.accounts.oauth2.TokenResponse | null>(null);
-  let tokenClient: google.accounts.oauth2.TokenClient | null = null;
-
+  
+  // Store tokenClient in a ref to avoid re-initialization on every render
+  const tokenClientRef = React.useRef<google.accounts.oauth2.TokenClient | null>(null);
 
   const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
   const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
@@ -53,7 +52,9 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   }, []);
 
   const gisLoadCallback = useCallback(() => {
-    tokenClient = window.google.accounts.oauth2.initTokenClient({
+    if (tokenClientRef.current) return;
+
+    tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
       client_id: CLIENT_ID,
       scope: SCOPES,
       callback: (tokenResponse) => {
@@ -63,7 +64,6 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
                 title: 'Authentication Failed',
                 description: tokenResponse.error_description || 'Could not get access token.',
             });
-            // Reset to method selection on failure
             setStep('method');
             setUploadMethod(null);
         } else {
@@ -71,7 +71,6 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         }
       },
     });
-    setGapiLoaded(true);
   }, [CLIENT_ID, SCOPES, toast]);
 
   useEffect(() => {
@@ -108,8 +107,11 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         return;
     }
 
+    const view = new window.google.picker.View(window.google.picker.ViewId.DOCS);
+    view.setMimeTypes("application/pdf,video/*,image/*");
+    
     const picker = new window.google.picker.PickerBuilder()
-      .addView(window.google.picker.ViewId.DOCS)
+      .addView(view)
       .setOAuthToken(oauthToken.access_token)
       .setDeveloperKey(API_KEY)
       .setCallback((data: google.picker.ResponseObject) => {
@@ -120,7 +122,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
               id: file.id,
               name: file.name,
               type: 'file',
-              fileType: file.mimeType?.includes('pdf') ? 'pdf' : file.mimeType?.includes('video') ? 'video' : 'file',
+              fileType: file.mimeType?.includes('pdf') ? 'pdf' : file.mimeType?.includes('video') ? 'video' : 'image',
               parentId: currentFolderId,
               source: file.url
           }
@@ -134,6 +136,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         } else if (data.action === window.google.picker.Action.CANCEL) {
             setStep('method');
             setUploadMethod(null);
+            setOauthToken(null);
         }
       })
       .build()
@@ -142,28 +145,37 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
 
 
   useEffect(() => {
-    if (oauthToken && pickerApiLoaded) {
-      createPicker()
+    if (uploadMethod === 'gdrive' && oauthToken && pickerApiLoaded) {
+      createPicker();
     }
-  }, [oauthToken, pickerApiLoaded, createPicker])
+  }, [uploadMethod, oauthToken, pickerApiLoaded, createPicker]);
 
 
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
     setUploadMethod(method);
+    setStep("details");
+
     if (method === 'gdrive') {
-        if (!gapiLoaded || !tokenClient) {
-            toast({
-                variant: 'destructive',
-                title: 'Google API Loading',
-                description: 'Google services are still loading. Please wait a moment and try again.',
-            });
-            return;
-        }
-        setStep('details');
-        tokenClient.requestAccessToken();
-    } else {
-        setStep("details");
+      if (tokenClientRef.current) {
+        tokenClientRef.current.requestAccessToken();
+      } else {
+         toast({
+            variant: 'destructive',
+            title: 'Google API Loading',
+            description: 'Google services are still loading. Please wait a moment and try again.',
+        });
+        setStep('method');
+        setUploadMethod(null);
+      }
     }
+  }
+  
+  const resetFlow = () => {
+    setStep('method');
+    setUploadMethod(null);
+    setOauthToken(null);
+    setIsSubmitting(false);
+    form.reset();
   }
 
   const renderMethodStep = () => (
@@ -204,12 +216,15 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
 
     if (uploadMethod === 'embed' && values.fileUrl) {
         submissionData.name = new URL(values.fileUrl).hostname;
-        submissionData.fileType = 'video'; // Placeholder
+        submissionData.fileType = 'video';
+        submissionData.source = values.fileUrl;
     } else if (uploadMethod === 'local' && values.localFile) {
         const file = values.localFile?.[0];
         if (file) {
           submissionData.name = file.name;
           submissionData.fileType = 'pdf'; // Placeholder
+          // In a real app, you'd upload this file and get a URL.
+          submissionData.source = "local-file-placeholder";
         }
     }
 
@@ -222,10 +237,6 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       description: `Materi "${submissionData.name}" telah ditambahkan.`,
     })
     
-    setIsSubmitting(false)
-    form.reset()
-    setUploadMethod(null)
-    setStep('method');
     onClose();
   }
 
@@ -236,8 +247,8 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         return (
             <div className="flex flex-col items-center justify-center h-32 space-y-2">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-muted-foreground">Menghubungkan ke Google Drive...</p>
-                <Button variant="link" onClick={() => { setStep('method'); setUploadMethod(null); }}>
+                <p className="text-muted-foreground">Menunggu otentikasi Google...</p>
+                <Button variant="link" onClick={resetFlow}>
                     Batal
                 </Button>
             </div>
@@ -265,7 +276,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
             )}
 
              <div className="flex justify-between items-center pt-4">
-                <Button variant="ghost" onClick={() => { setStep('method'); setUploadMethod(null); }}>Kembali</Button>
+                <Button variant="ghost" onClick={resetFlow}>Kembali</Button>
                 <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Simpan Materi
