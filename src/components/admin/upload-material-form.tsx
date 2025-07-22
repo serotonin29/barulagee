@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Loader2, UploadCloud, Link, FileUp, File as FileIcon } from "lucide-react"
 import { ScrollArea } from "../ui/scroll-area"
 import { Card, CardContent } from "../ui/card"
-import { cn } from "@/lib/utils"
+import type { DriveItem } from "@/types"
 
 const formSchema = z.object({
   title: z.string().min(5, {
@@ -40,7 +40,13 @@ const dummyDriveFiles: DriveFile[] = [
     { id: '6', name: 'Anatomy Atlas Scans', type: 'folder' },
 ]
 
-export function UploadMaterialForm() {
+type UploadMaterialFormProps = {
+  onMaterialAdd: (material: DriveItem) => void;
+  onClose: () => void;
+  currentFolderId: string | null;
+};
+
+export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: UploadMaterialFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDriveConnecting, setIsDriveConnecting] = useState(false)
   const [isDriveConnected, setIsDriveConnected] = useState(false)
@@ -60,22 +66,30 @@ export function UploadMaterialForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true)
     
-    let submissionData: any = { title: values.title, method: values.uploadMethod };
+    let submissionData: Partial<DriveItem> = { 
+        id: `file-${Date.now()}`,
+        name: values.title, 
+        type: 'file',
+        parentId: currentFolderId,
+    };
+
     if (values.uploadMethod === 'gdrive' && selectedDriveFile) {
-        submissionData.fileName = selectedDriveFile.name;
+        submissionData.fileType = 'pdf'; // Placeholder
     } else if (values.uploadMethod === 'embed' && values.fileUrl) {
-        submissionData.url = values.fileUrl;
+        submissionData.fileType = 'video'; // Placeholder
     } else if (values.uploadMethod === 'local' && values.localFile) {
-        submissionData.fileName = values.localFile[0]?.name;
+        submissionData.fileType = 'pdf'; // Placeholder
     }
 
     console.log("Submitting:", submissionData);
 
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    onMaterialAdd(submissionData as DriveItem);
 
     toast({
-      title: "Proses Dimulai",
-      description: `Materi "${submissionData.title}" sedang diproses.`,
+      title: "Materi Ditambahkan",
+      description: `Materi "${submissionData.name}" telah ditambahkan.`,
     })
     
     setIsSubmitting(false)
@@ -83,6 +97,7 @@ export function UploadMaterialForm() {
     setIsDriveConnected(false)
     setSelectedDriveFile(null)
     setCurrentStep('title');
+    onClose();
   }
   
   const handleConnectDrive = () => {
@@ -207,7 +222,7 @@ export function UploadMaterialForm() {
                                             <div 
                                                 key={file.id} 
                                                 onClick={() => setSelectedDriveFile(file)}
-                                                className={`flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-accent`}
+                                                className={'flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-accent'}
                                             >
                                                 <FileIcon className="h-5 w-5 text-muted-foreground" />
                                                 <span className="text-sm flex-grow">{file.name}</span>

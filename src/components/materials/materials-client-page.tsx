@@ -83,6 +83,10 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
         setIsFolderDialogOpen(false);
     };
 
+    const handleMaterialAdd = (material: DriveItem) => {
+      setItems(prev => [...prev, material]);
+    }
+
 
     return (
         <div className="space-y-6">
@@ -149,7 +153,11 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
                                     </DialogDescription>
                                 </DialogHeader>
                                 <div className="pt-4">
-                                    <UploadMaterialForm />
+                                    <UploadMaterialForm 
+                                      onMaterialAdd={handleMaterialAdd}
+                                      onClose={() => setIsUploadDialogOpen(false)}
+                                      currentFolderId={currentFolderId}
+                                    />
                                 </div>
                             </DialogContent>
                         </Dialog>
