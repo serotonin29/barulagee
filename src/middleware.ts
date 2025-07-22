@@ -5,20 +5,22 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   // TODO: Add proper auth checking here.
   // For now, allow all requests except for a simulated auth check.
-  const isAuthenticated = true; // Replace with actual auth check
+  const isAuthenticated = false; // Replace with actual auth check. Set to false to test unauthenticated flow.
   const userRole = 'mahasiswa'; // Replace with actual user role from session/token
 
   const { pathname } = request.nextUrl;
+  
+  const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/register') || pathname.startsWith('/continue-registration');
 
-  // If user is not authenticated and tries to access anything other than login/register,
-  // redirect them to the login page.
-  if (!isAuthenticated && !pathname.startsWith('/login') && !pathname.startsWith('/register')) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  // If user is not authenticated and tries to access a protected route,
+  // redirect them to the landing page.
+  if (!isAuthenticated && !isAuthRoute && pathname !== '/') {
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
-  // If user is authenticated and tries to access login/register,
+  // If user is authenticated and tries to access login/register or the landing page,
   // redirect them to the dashboard.
-  if (isAuthenticated && (pathname.startsWith('/login') || pathname.startsWith('/register'))) {
+  if (isAuthenticated && (isAuthRoute || pathname === '/')) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
