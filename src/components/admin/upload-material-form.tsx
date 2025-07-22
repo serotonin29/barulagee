@@ -36,140 +36,95 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const { toast } = useToast()
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const folderCache = useRef<{ [key: string]: string }>({});
-  const [isGapiLoaded, setIsGapiLoaded] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  
+  // --- Google Picker State ---
+  const [gapiLoaded, setGapiLoaded] = useState(false);
+  const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
+  const [oauthToken, setOauthToken] = useState<string | null>(null);
 
   const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
   const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
-  const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+  const APP_ID = "5216400358"; // Project Number from Firebase config
+  const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
 
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://apis.google.com/js/api.js';
-    script.onload = () => {
-      window.gapi.load('client:auth2', initClient);
-    };
-    document.body.appendChild(script);
-
-    return () => {
-        document.body.removeChild(script);
+    if (uploadMethod === 'gdrive' && !gapiLoaded) {
+      const script = document.createElement('script');
+      script.src = 'https://apis.google.com/js/api.js';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        window.gapi.load('auth2:picker', () => {
+          setPickerApiLoaded(true);
+        });
+        setGapiLoaded(true);
+      };
+      document.body.appendChild(script);
     }
-  }, []);
+  }, [uploadMethod, gapiLoaded]);
 
-  const initClient = () => {
-    window.gapi.client.init({
-      apiKey: API_KEY,
-      clientId: CLIENT_ID,
-      scope: SCOPES,
-    }).then(() => {
-        setIsGapiLoaded(true);
-    }).catch(error => {
-        toast({ variant: 'destructive', title: 'Google API Init Failed', description: error.message });
-    });
-  };
-
-  const handleAuthClick = async () => {
-    if (!fileInputRef.current?.files?.length) {
-        toast({ variant: 'destructive', title: 'Tidak ada folder dipilih', description: 'Silakan pilih folder untuk diunggah.' });
-        return;
-    }
-
-    setIsUploading(true);
-    try {
-        await window.gapi.auth2.getAuthInstance().signIn();
-        const files = fileInputRef.current.files;
-        if (files.length > 0) {
-            let totalFiles = 0;
-            for (const file of files) {
-                if (!file.type && file.size === 0) continue; // Skip folder entries if they appear
-                totalFiles++;
+  const handleAuthClick = () => {
+    if (!window.gapi) return;
+    const tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: (tokenResponse) => {
+            if (tokenResponse && tokenResponse.access_token) {
+                setOauthToken(tokenResponse.access_token);
+                createPicker(tokenResponse.access_token);
             }
-
-            let uploadedCount = 0;
-            toast({ title: 'Upload Dimulai', description: `Mengunggah ${totalFiles} file...` });
-
-            for (const file of files) {
-                if (!file.type && file.size === 0) continue;
-                
-                const pathParts = file.webkitRelativePath.split('/');
-                pathParts.pop(); // Remove filename
-                
-                const folderId = await createFoldersRecursively(pathParts);
-                await uploadFile(file, folderId);
-                
-                uploadedCount++;
-                // Optionally update progress
-            }
-            toast({ title: 'Upload Selesai', description: `${uploadedCount} file berhasil diunggah ke Google Drive.` });
-            onClose();
-        }
-    } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Upload Gagal', description: error.message || 'Terjadi kesalahan saat mengunggah.' });
-    } finally {
-        setIsUploading(false);
-    }
-  };
-
-  const createFoldersRecursively = async (pathParts: string[]) => {
-    let parentId = 'root';
-    let currentPath = '';
-
-    for (const folderName of pathParts) {
-      if (!folderName) continue;
-      currentPath += `/${folderName}`;
-      if (folderCache.current[currentPath]) {
-        parentId = folderCache.current[currentPath];
-        continue;
-      }
-
-      const response = await window.gapi.client.drive.files.create({
-        resource: {
-          name: folderName,
-          mimeType: 'application/vnd.google-apps.folder',
-          parents: [parentId],
         },
-        fields: 'id',
-      });
-
-      const newFolderId = response.result.id;
-      folderCache.current[currentPath] = newFolderId;
-      parentId = newFolderId;
-    }
-    return parentId;
-  };
-
-  const uploadFile = async (file: File, parentId: string) => {
-    const metadata = {
-      name: file.name,
-      mimeType: file.type,
-      parents: [parentId],
-    };
-
-    const accessToken = window.gapi.auth.getToken().access_token;
-    const form = new FormData();
-    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('file', file);
-
-    const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
-      method: 'POST',
-      headers: new Headers({ Authorization: 'Bearer ' + accessToken }),
-      body: form,
     });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Gagal mengunggah ${file.name}: ${errorData.error.message}`);
-    }
-    
-    // In a real app, you might want to link this back to the material list
-    // For now, we just log it.
-    console.log(`File terunggah: ${file.name}`);
+    tokenClient.requestAccessToken();
   };
+
+  const createPicker = (token: string) => {
+    if (!pickerApiLoaded || !token) return;
+
+    const view = new window.google.picker.DocsView()
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(true);
+
+    const picker = new window.google.picker.PickerBuilder()
+        .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
+        .setAppId(APP_ID)
+        .setOAuthToken(token)
+        .addView(view)
+        .setDeveloperKey(API_KEY)
+        .setCallback(pickerCallback)
+        .build();
+    picker.setVisible(true);
+  };
+  
+  const pickerCallback = (data: any) => {
+    if (data.action === window.google.picker.Action.PICKED) {
+      const files = data.docs;
+      files.forEach((file: any) => {
+        const newMaterial: DriveItem = {
+          id: file.id,
+          name: file.name,
+          type: 'file',
+          parentId: currentFolderId,
+          fileType: 'text', // Placeholder, can be improved
+          source: file.url,
+        };
+        onMaterialAdd(newMaterial);
+      });
+      toast({
+        title: "Materi Dipilih",
+        description: `${files.length} file telah ditambahkan dari Google Drive.`,
+      })
+      onClose();
+    }
+  };
+
 
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
     setUploadMethod(method);
     setStep("details");
+    if (method === 'gdrive') {
+        handleAuthClick();
+    }
   }
   
   const resetFlow = () => {
@@ -197,14 +152,13 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
 
     if (uploadMethod === 'embed' && values.fileUrl) {
         submissionData.name = new URL(values.fileUrl).hostname;
-        submissionData.fileType = 'video';
+        submissionData.fileType = 'video'; // assumption
         submissionData.source = values.fileUrl;
-    } else if (uploadMethod === 'local' && (fileInputRef.current as any)?.files) {
-        const file = (fileInputRef.current as any).files?.[0];
+    } else if (uploadMethod === 'local' && fileInputRef.current?.files) {
+        const file = fileInputRef.current.files[0];
         if (file) {
           submissionData.name = file.name;
           submissionData.fileType = 'pdf'; // Placeholder
-          // In a real app, you'd upload this file and get a URL.
           submissionData.source = "local-file-placeholder";
         }
     }
@@ -231,7 +185,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
             </Card>
              <Card onClick={() => handleSelectMethod('gdrive')} className="p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent transition-colors h-32">
                 <GoogleIcon className="w-8 h-8"/>
-                <span className="text-sm font-medium text-center">Folder dari PC</span>
+                <span className="text-sm font-medium text-center">Google Drive</span>
             </Card>
              <Card onClick={() => handleSelectMethod('embed')} className="p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent transition-colors h-32">
                 <FileIcon className="w-8 h-8 text-primary"/>
@@ -243,35 +197,17 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
 
   const renderDetailsStep = () => {
     if (!uploadMethod) return null;
-
+    
     if (uploadMethod === 'gdrive') {
         return (
-            <div className="space-y-4">
-                <h3 className="font-medium">Unggah Folder ke Google Drive</h3>
-                <p className="text-sm text-muted-foreground">Pilih folder dari komputer Anda. Seluruh struktur folder dan isinya akan diunggah ke root direktori Google Drive Anda.</p>
-                <div>
-                    <Label htmlFor="folder-upload">Pilih Folder</Label>
-                    <Input 
-                        id="folder-upload"
-                        type="file" 
-                        // @ts-ignore
-                        webkitdirectory="true" 
-                        directory="true" 
-                        multiple 
-                        ref={fileInputRef} 
-                    />
-                </div>
-                <div className="flex justify-between items-center pt-4">
-                    <Button variant="ghost" onClick={resetFlow}>Kembali</Button>
-                    <Button onClick={handleAuthClick} disabled={!isGapiLoaded || isUploading}>
-                        {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-                        Login & Unggah
-                    </Button>
-                </div>
+            <div className="flex flex-col items-center justify-center h-32">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <p className="mt-4 text-muted-foreground">Menunggu otorisasi Google Drive...</p>
+                 <Button variant="ghost" onClick={resetFlow} className="mt-4">Kembali</Button>
             </div>
-        );
+        )
     }
-    
+
     return (
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {uploadMethod === 'local' && (
