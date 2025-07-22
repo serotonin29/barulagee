@@ -36,75 +36,85 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const [step, setStep] = useState<'method' | 'details'>('method')
   const { toast } = useToast()
 
-  const [gapiLoaded, setGapiLoaded] = useState(false)
-  const [pickerApiLoaded, setPickerApiLoaded] = useState(false)
-  const [oauthToken, setOauthToken] = useState<google.accounts.oauth2.TokenResponse | null>(null)
+  const [gapiLoaded, setGapiLoaded] = useState(false);
+  const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
+  const [oauthToken, setOauthToken] = useState<google.accounts.oauth2.TokenResponse | null>(null);
+  let tokenClient: google.accounts.oauth2.TokenClient | null = null;
 
-  const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''
-  const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || ''
-  const SCOPES = 'https://www.googleapis.com/auth/drive.readonly'
 
-  // Load Google's GIS and GAPI scripts
-  useEffect(() => {
-    const gisiScript = document.createElement('script')
-    gisiScript.src = 'https://accounts.google.com/gsi/client'
-    gisiScript.async = true
-    gisiScript.defer = true
-    gisiScript.onload = () => setGapiLoaded(true)
-    document.body.appendChild(gisiScript)
+  const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+  const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
+  const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
 
-    const gapiScript = document.createElement('script')
-    gapiScript.src = 'https://apis.google.com/js/api.js'
-    gapiScript.async = true
-    gapiScript.defer = true
-    gapiScript.onload = () => {
-      gapi.load('picker', () => setPickerApiLoaded(true))
-    }
-    document.body.appendChild(gapiScript)
+  const gapiLoadCallback = useCallback(() => {
+    window.gapi.load('picker', () => {
+      setPickerApiLoaded(true);
+    });
+  }, []);
 
-    return () => {
-      document.body.removeChild(gisiScript)
-      document.body.removeChild(gapiScript)
-    }
-  }, [])
-
-  const handleAuth = useCallback(() => {
-    if (!gapiLoaded) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Google API script not loaded yet.' })
-      return
-    }
-
-    const tokenClient = google.accounts.oauth2.initTokenClient({
+  const gisLoadCallback = useCallback(() => {
+    tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: CLIENT_ID,
       scope: SCOPES,
       callback: (tokenResponse) => {
         if (tokenResponse.error) {
-          toast({
-            variant: 'destructive',
-            title: 'Authentication Failed',
-            description: tokenResponse.error_description || 'Could not connect to Google Drive. Please try again.',
-          })
+            toast({
+                variant: 'destructive',
+                title: 'Authentication Failed',
+                description: tokenResponse.error_description || 'Could not get access token.',
+            });
+            // Reset to method selection on failure
+            setStep('method');
+            setUploadMethod(null);
         } else {
-          setOauthToken(tokenResponse)
+            setOauthToken(tokenResponse);
         }
       },
-    })
-    tokenClient.requestAccessToken()
-  }, [gapiLoaded, toast, CLIENT_ID, SCOPES])
+    });
+    setGapiLoaded(true);
+  }, [CLIENT_ID, SCOPES, toast]);
+
+  useEffect(() => {
+    const gapiScript = document.createElement('script');
+    gapiScript.src = 'https://apis.google.com/js/api.js';
+    gapiScript.async = true;
+    gapiScript.defer = true;
+    gapiScript.onload = () => gapiLoadCallback();
+    document.body.appendChild(gapiScript);
+
+    const gisScript = document.createElement('script');
+    gisScript.src = 'https://accounts.google.com/gsi/client';
+    gisScript.async = true;
+    gisScript.defer = true;
+    gisScript.onload = () => gisLoadCallback();
+    document.body.appendChild(gisScript);
+
+    return () => {
+      document.body.removeChild(gapiScript);
+      document.body.removeChild(gisScript);
+    };
+  }, [gapiLoadCallback, gisLoadCallback]);
+
 
   const createPicker = useCallback(() => {
-    if (!pickerApiLoaded || !oauthToken) {
-      return
+    if (!pickerApiLoaded || !oauthToken || !API_KEY) {
+        let errorMsg = 'Google Picker could not be created. ';
+        if (!pickerApiLoaded) errorMsg += 'Picker API not loaded. ';
+        if (!oauthToken) errorMsg += 'OAuth token missing. ';
+        if (!API_KEY) errorMsg += 'API Key missing. ';
+        toast({ variant: 'destructive', title: 'Error', description: errorMsg });
+        setStep('method'); 
+        setUploadMethod(null);
+        return;
     }
 
-    const picker = new google.picker.PickerBuilder()
-      .addView(google.picker.ViewId.DOCS)
+    const picker = new window.google.picker.PickerBuilder()
+      .addView(window.google.picker.ViewId.DOCS)
       .setOAuthToken(oauthToken.access_token)
       .setDeveloperKey(API_KEY)
       .setCallback((data: google.picker.ResponseObject) => {
-        if (data.action === google.picker.Action.PICKED) {
+        if (data.action === window.google.picker.Action.PICKED) {
           const file = data.docs[0]
-          console.log('File terpilih:', file)
           
           const newMaterial: DriveItem = {
               id: file.id,
@@ -121,11 +131,15 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
               description: `"${file.name}" telah ditambahkan.`,
           })
           onClose()
+        } else if (data.action === window.google.picker.Action.CANCEL) {
+            setStep('method');
+            setUploadMethod(null);
         }
       })
       .build()
     picker.setVisible(true)
-  }, [pickerApiLoaded, oauthToken, API_KEY, currentFolderId, onMaterialAdd, toast, onClose])
+  }, [pickerApiLoaded, oauthToken, API_KEY, currentFolderId, onMaterialAdd, toast, onClose]);
+
 
   useEffect(() => {
     if (oauthToken && pickerApiLoaded) {
@@ -137,15 +151,16 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
     setUploadMethod(method);
     if (method === 'gdrive') {
-        if (!CLIENT_ID || !API_KEY) {
+        if (!gapiLoaded || !tokenClient) {
             toast({
-                variant: "destructive",
-                title: "Konfigurasi Diperlukan",
-                description: "Client ID dan API Key Google Drive belum diatur.",
-            })
-            return
+                variant: 'destructive',
+                title: 'Google API Loading',
+                description: 'Google services are still loading. Please wait a moment and try again.',
+            });
+            return;
         }
-        handleAuth()
+        setStep('details');
+        tokenClient.requestAccessToken();
     } else {
         setStep("details");
     }
@@ -216,6 +231,18 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
 
   const renderDetailsStep = () => {
     if (!uploadMethod) return null;
+
+    if (uploadMethod === 'gdrive') {
+        return (
+            <div className="flex flex-col items-center justify-center h-32 space-y-2">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-muted-foreground">Menghubungkan ke Google Drive...</p>
+                <Button variant="link" onClick={() => { setStep('method'); setUploadMethod(null); }}>
+                    Batal
+                </Button>
+            </div>
+        );
+    }
 
     return (
         <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="space-y-4">
