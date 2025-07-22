@@ -1,5 +1,7 @@
+
 "use client";
 
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Carousel,
@@ -28,12 +30,22 @@ export function MotivationCarousel() {
       <CarouselContent>
         {motivationalQuotes.map((item, index) => (
           <CarouselItem key={index}>
-            <Card className="bg-primary/20 border-primary/40">
-              <CardContent className="flex items-center justify-center p-6 h-40">
-                <p className="text-xl font-semibold text-center text-primary-foreground/80">
-                  "{item.quote}"
-                </p>
-              </CardContent>
+            <Card className="relative overflow-hidden text-white">
+                <div className="absolute inset-0">
+                    <Image 
+                        src="/hero-background.png" 
+                        alt="Medical background"
+                        fill
+                        style={{ objectFit: 'cover' }}
+                        className="brightness-50"
+                        data-ai-hint="medical students studying"
+                    />
+                </div>
+                <CardContent className="relative flex items-center justify-center p-6 h-40">
+                    <p className="text-xl font-semibold text-center">
+                    "{item.quote}"
+                    </p>
+                </CardContent>
             </Card>
           </CarouselItem>
         ))}
