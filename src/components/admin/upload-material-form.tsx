@@ -39,46 +39,74 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   
   // --- Google Picker State ---
   const [gapiLoaded, setGapiLoaded] = useState(false);
+  const [gisLoaded, setGisLoaded] = useState(false);
   const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
-  const [oauthToken, setOauthToken] = useState<string | null>(null);
+  const [oauthToken, setOauthToken] = React.useState<google.accounts.oauth2.TokenResponse | null>(null);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
   const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
-  const APP_ID = "5216400358"; // Project Number from Firebase config
+  const APP_ID = "neurozsis";
   const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
+  
+  let tokenClient = useRef<any>(null);
 
   useEffect(() => {
-    if (uploadMethod === 'gdrive' && !gapiLoaded) {
+    const gapiUrl = 'https://apis.google.com/js/api.js';
+    const gisUrl = 'https://accounts.google.com/gsi/client';
+
+    const loadScript = (src: string, onLoad: () => void) => {
       const script = document.createElement('script');
-      script.src = 'https://apis.google.com/js/api.js';
+      script.src = src;
       script.async = true;
       script.defer = true;
-      script.onload = () => {
-        window.gapi.load('auth2:picker', () => {
-          setPickerApiLoaded(true);
-        });
-        setGapiLoaded(true);
-      };
+      script.onload = onLoad;
       document.body.appendChild(script);
-    }
-  }, [uploadMethod, gapiLoaded]);
+    };
 
-  const handleAuthClick = () => {
-    if (!window.gapi) return;
-    const tokenClient = window.google.accounts.oauth2.initTokenClient({
+    loadScript(gapiUrl, () => setGapiLoaded(true));
+    loadScript(gisUrl, () => setGisLoaded(true));
+
+  }, []);
+
+  const initializePicker = useCallback(() => {
+    if (gapiLoaded && !pickerApiLoaded) {
+      window.gapi.load('picker', () => {
+        setPickerApiLoaded(true);
+      });
+    }
+  }, [gapiLoaded, pickerApiLoaded]);
+
+  useEffect(() => {
+    if (gisLoaded && gapiLoaded) {
+      initializePicker();
+      tokenClient.current = window.google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: SCOPES,
         callback: (tokenResponse) => {
-            if (tokenResponse && tokenResponse.access_token) {
-                setOauthToken(tokenResponse.access_token);
-                createPicker(tokenResponse.access_token);
-            }
+          if (tokenResponse && tokenResponse.access_token) {
+            setOauthToken(tokenResponse);
+            createPicker(tokenResponse);
+          } else {
+             toast({ variant: 'destructive', title: 'Authentication Failed', description: 'Could not get access token from Google.' });
+          }
+          setIsGoogleLoading(false);
         },
-    });
-    tokenClient.requestAccessToken();
+      });
+    }
+  }, [gisLoaded, gapiLoaded, initializePicker]);
+  
+  const handleAuthClick = () => {
+    setIsGoogleLoading(true);
+    if (tokenClient.current) {
+        tokenClient.current.requestAccessToken();
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: 'Google Auth is not ready. Please wait a moment and try again.'});
+        setIsGoogleLoading(false);
+    }
   };
 
-  const createPicker = (token: string) => {
+  const createPicker = (token: google.accounts.oauth2.TokenResponse) => {
     if (!pickerApiLoaded || !token) return;
 
     const view = new window.google.picker.DocsView()
@@ -88,7 +116,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     const picker = new window.google.picker.PickerBuilder()
         .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
         .setAppId(APP_ID)
-        .setOAuthToken(token)
+        .setOAuthToken(token.access_token)
         .addView(view)
         .setDeveloperKey(API_KEY)
         .setCallback(pickerCallback)
@@ -103,10 +131,14 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         const newMaterial: DriveItem = {
           id: file.id,
           name: file.name,
-          type: 'file',
+          type: 'file', // GDrive items are always files in this context
           parentId: currentFolderId,
-          fileType: 'text', // Placeholder, can be improved
+          fileType: file.mimeType.includes('video') ? 'video' :
+                    file.mimeType.includes('pdf') ? 'pdf' :
+                    file.mimeType.includes('image') ? 'image' :
+                    'text',
           source: file.url,
+          coverImage: file.thumbnails?.[0]?.url || `https://placehold.co/600x400`,
         };
         onMaterialAdd(newMaterial);
       });
@@ -131,6 +163,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     setStep('method');
     setUploadMethod(null);
     setIsSubmitting(false);
+    setIsGoogleLoading(false);
     form.reset();
   }
 
@@ -151,7 +184,11 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     const values = form.getValues();
 
     if (uploadMethod === 'embed' && values.fileUrl) {
-        submissionData.name = new URL(values.fileUrl).hostname;
+        try {
+            submissionData.name = new URL(values.fileUrl).hostname;
+        } catch (e) {
+            submissionData.name = "Embedded Link"
+        }
         submissionData.fileType = 'video'; // assumption
         submissionData.source = values.fileUrl;
     } else if (uploadMethod === 'local' && fileInputRef.current?.files) {
@@ -183,9 +220,14 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
                 <FileUp className="w-8 h-8 text-primary"/>
                 <span className="text-sm font-medium text-center">File Lokal</span>
             </Card>
-             <Card onClick={() => handleSelectMethod('gdrive')} className="p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent transition-colors h-32">
-                <GoogleIcon className="w-8 h-8"/>
-                <span className="text-sm font-medium text-center">Google Drive</span>
+             <Card onClick={() => {
+                setUploadMethod('gdrive');
+                handleAuthClick();
+             }} className="p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent transition-colors h-32">
+                {isGoogleLoading ? <Loader2 className="w-8 h-8 animate-spin" /> : <GoogleIcon className="w-8 h-8"/>}
+                <span className="text-sm font-medium text-center">
+                  {isGoogleLoading ? "Menghubungkan..." : "Google Drive"}
+                </span>
             </Card>
              <Card onClick={() => handleSelectMethod('embed')} className="p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent transition-colors h-32">
                 <FileIcon className="w-8 h-8 text-primary"/>
@@ -202,8 +244,9 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         return (
             <div className="flex flex-col items-center justify-center h-32">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="mt-4 text-muted-foreground">Menunggu otorisasi Google Drive...</p>
-                 <Button variant="ghost" onClick={resetFlow} className="mt-4">Kembali</Button>
+                <p className="mt-4 text-muted-foreground">Membuka Google Picker...</p>
+                <p className="text-xs text-muted-foreground mt-1">Jika tidak ada yang muncul, pastikan popup tidak diblokir.</p>
+                 <Button variant="ghost" onClick={resetFlow} className="mt-4">Batal</Button>
             </div>
         )
     }
@@ -229,7 +272,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
             )}
 
              <div className="flex justify-between items-center pt-4">
-                <Button variant="ghost" onClick={resetFlow}>Kembali</Button>
+                <Button type="button" variant="ghost" onClick={resetFlow}>Kembali</Button>
                 <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Simpan Materi
@@ -245,3 +288,5 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     </div>
   )
 }
+
+    
