@@ -41,14 +41,17 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
   const [oauthToken, setOauthToken] = useState<string | null>(null);
 
-  const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || 'YOUR_CLIENT_ID';
-  const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || 'YOUR_API_KEY';
+  const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+  const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
   const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
 
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://apis.google.com/js/api.js';
-    script.onload = () => gapi.load('picker', () => setGapiLoaded(true));
+    script.onload = () => {
+        gapi.load('auth', {'callback': () => setGapiLoaded(true) });
+        gapi.load('picker', {'callback': () => setPickerApiLoaded(true) });
+    }
     document.body.appendChild(script);
 
     return () => {
@@ -57,16 +60,14 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   }, []);
 
   const handleAuth = () => {
-    gapi.load('auth', { 'callback': () => {
-        gapi.auth.authorize(
-            {
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                immediate: false
-            },
-            handleAuthResult
-        );
-    }});
+    gapi.auth.authorize(
+        {
+            client_id: CLIENT_ID,
+            scope: SCOPES,
+            immediate: false
+        },
+        handleAuthResult
+    );
   };
   
   const handleAuthResult = (authResult: google.auth.GoogleApiOAuth2TokenObject) => {
@@ -82,10 +83,10 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   };
 
   useEffect(() => {
-    if (oauthToken && gapiLoaded) {
+    if (oauthToken && pickerApiLoaded) {
       createPicker();
     }
-  }, [oauthToken, gapiLoaded]);
+  }, [oauthToken, pickerApiLoaded]);
 
 
   const createPicker = () => {
@@ -107,7 +108,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
               id: file.id,
               name: file.name,
               type: 'file',
-              fileType: 'pdf', // Placeholder, could be derived from file.mimeType
+              fileType: file.mimeType.includes('pdf') ? 'pdf' : file.mimeType.includes('video') ? 'video' : 'file',
               parentId: currentFolderId,
               source: file.url
           };
@@ -124,8 +125,16 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
     setUploadMethod(method);
     if (method === 'gdrive') {
-        if (!CLIENT_ID.startsWith('YOUR_') && !API_KEY.startsWith('YOUR_')) {
-          handleAuth();
+        if (CLIENT_ID && API_KEY) {
+          if (gapiLoaded) {
+            handleAuth();
+          } else {
+            toast({
+                variant: "destructive",
+                title: "API Belum Siap",
+                description: "Google API script belum termuat. Mohon tunggu sebentar.",
+            })
+          }
         } else {
             toast({
                 variant: "destructive",
@@ -225,7 +234,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
             )}
 
              <div className="flex justify-between items-center pt-4">
-                <Button variant="ghost" onClick={() => setStep('method')}>Kembali</Button>
+                <Button variant="ghost" onClick={() => { setStep('method'); setUploadMethod(null); }}>Kembali</Button>
                 <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Simpan Materi
@@ -237,4 +246,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   
   return (
     <div>
-        {step === 'method' ? renderMethod
+        {step === 'method' ? renderMethodStep() : renderDetailsStep()}
+    </div>
+  )
+}
