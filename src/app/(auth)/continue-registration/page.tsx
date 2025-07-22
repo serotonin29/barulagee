@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -29,7 +30,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
-import { Loader2, Heart, Brain, Baby, Stethoscope, Bone, Microscope } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -37,13 +38,25 @@ import { doc, setDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 
 const perks = [
-    { id: 'cardiology', label: 'Kardiologi', icon: Heart },
-    { id: 'neurology', label: 'Neurologi', icon: Brain },
-    { id: 'pediatrics', label: 'Pediatri', icon: Baby },
-    { id: 'general', label: 'Umum', icon: Stethoscope },
-    { id: 'orthopedics', label: 'Ortopedi', icon: Bone },
-    { id: 'pathology', label: 'Patologi', icon: Microscope },
+    { id: 'alternative-medicine', label: 'Alternative Medicine', icon: '/perks/Alternative Medicine.png' },
+    { id: 'biochemistry', label: 'Biochemistry', icon: '/perks/Biochemistry.png' },
+    { id: 'dermatology', label: 'Dermatology', icon: '/perks/Dermatology.png' },
+    { id: 'general-practitioner', label: 'General Practitioner', icon: '/perks/General Practitioner.png' },
+    { id: 'general-surgery', label: 'General Surgery', icon: '/perks/General Surgery.png' },
+    { id: 'geriatrics', label: 'Geriatrics', icon: '/perks/Geriatrics.png' },
+    { id: 'hematology', label: 'Hematology', icon: '/perks/Hematology.png' },
+    { id: 'neurosurgery', label: 'Neurosurgery', icon: '/perks/Neurosurgery.png' },
+    { id: 'obstetrics', label: 'Obstetrics', icon: '/perks/Obstetrics.png' },
+    { id: 'ophthalmology', label: 'Ophthalmology', icon: '/perks/Ophthalmology.png' },
+    { id: 'optometry', label: 'Optometry', icon: '/perks/Optometry.png' },
+    { id: 'orthopedics', label: 'Orthopedics', icon: '/perks/Orthopedics.png' },
+    { id: 'pediatrics', label: 'Pediatrics', icon: '/perks/Pediatrics.png' },
+    { id: 'plastic-surgery', label: 'Plastic Surgery', icon: '/perks/Plastic Surgery.png' },
+    { id: 'psychiatry', label: 'Psychiatry', icon: '/perks/Psychiatry.png' },
+    { id: 'radiology', label: 'Radiology', icon: '/perks/Radiology.png' },
+    { id: 'virology', label: 'Virology', icon: '/perks/Virology.png' },
 ];
+
 
 const formSchema = z.object({
   role: z.enum(['mahasiswa', 'dosen'], {
@@ -184,9 +197,8 @@ export default function ContinueRegistrationPage() {
                 render={({ field }) => (
                     <FormItem>
                         <FormLabel>Minat Spesialisasi</FormLabel>
-                        <div className="grid grid-cols-2 gap-4 pt-2">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-2">
                         {perks.map((perk) => {
-                            const Icon = perk.icon;
                             const isSelected = field.value?.includes(perk.id);
                             return (
                                 <Card
@@ -202,7 +214,7 @@ export default function ContinueRegistrationPage() {
                                         isSelected ? "ring-2 ring-primary bg-primary/10" : "hover:bg-accent"
                                     )}
                                 >
-                                    <Icon className="h-8 w-8 text-primary" />
+                                    <Image src={perk.icon} alt={perk.label} width={48} height={48} className="h-12 w-12" />
                                     <span className="text-sm font-medium text-center">{perk.label}</span>
                                 </Card>
                             );
