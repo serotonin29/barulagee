@@ -48,8 +48,6 @@ type UploadMaterialFormProps = {
 
 export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: UploadMaterialFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isDriveConnecting, setIsDriveConnecting] = useState(false)
-  const [isDriveConnected, setIsDriveConnected] = useState(false)
   const [selectedDriveFile, setSelectedDriveFile] = useState<DriveFile | null>(null)
   const [currentStep, setCurrentStep] = useState<'title' | 'method' | 'details'>('title')
   const { toast } = useToast()
@@ -94,21 +92,11 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     
     setIsSubmitting(false)
     form.reset()
-    setIsDriveConnected(false)
     setSelectedDriveFile(null)
     setCurrentStep('title');
     onClose();
   }
   
-  const handleConnectDrive = () => {
-    setIsDriveConnecting(true);
-    setTimeout(() => {
-        setIsDriveConnected(true);
-        setIsDriveConnecting(false);
-        toast({ title: "Google Drive Terhubung", description: "Pilih file untuk diimpor." });
-    }, 1500);
-  }
-
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
     form.setValue("uploadMethod", method);
     setCurrentStep("details");
@@ -193,46 +181,32 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
 
             {uploadMethod === 'gdrive' && (
                 <div className="min-h-[250px] flex flex-col">
-                     {!isDriveConnected ? (
-                        <div className="flex-grow flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                            <UploadCloud className="w-12 h-12 text-muted-foreground mb-4"/>
-                            <h3 className="text-lg font-semibold">Hubungkan ke Google Drive</h3>
-                            <p className="text-sm text-muted-foreground mb-4">Login dan berikan izin untuk mengakses file Anda.</p>
-                            <Button type="button" onClick={handleConnectDrive} disabled={isDriveConnecting}>
-                                {isDriveConnecting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                                Hubungkan Akun Google
-                            </Button>
-                        </div>
+                    {selectedDriveFile ? (
+                        <Card>
+                            <CardContent className="p-4 flex items-center gap-3">
+                                <FileIcon className="h-5 w-5 text-muted-foreground" />
+                                <span className="text-sm flex-grow font-medium">{selectedDriveFile.name}</span>
+                                <Button variant="ghost" size="sm" onClick={() => setSelectedDriveFile(null)}>Ganti</Button>
+                            </CardContent>
+                        </Card>
                     ) : (
-                        <div>
-                            {selectedDriveFile ? (
-                                <Card>
-                                    <CardContent className="p-4 flex items-center gap-3">
+                        <>
+                        <p className="text-sm font-medium mb-2">Pilih file dari Drive Anda (Simulasi):</p>
+                        <ScrollArea className="h-64 rounded-md border">
+                            <div className="p-2 space-y-1">
+                                {dummyDriveFiles.map(file => (
+                                    <div 
+                                        key={file.id} 
+                                        onClick={() => setSelectedDriveFile(file)}
+                                        className={'flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-accent'}
+                                    >
                                         <FileIcon className="h-5 w-5 text-muted-foreground" />
-                                        <span className="text-sm flex-grow font-medium">{selectedDriveFile.name}</span>
-                                        <Button variant="ghost" size="sm" onClick={() => setSelectedDriveFile(null)}>Ganti</Button>
-                                    </CardContent>
-                                </Card>
-                            ) : (
-                                <>
-                                <p className="text-sm font-medium mb-2">Pilih file dari Drive Anda:</p>
-                                <ScrollArea className="h-64 rounded-md border">
-                                    <div className="p-2 space-y-1">
-                                        {dummyDriveFiles.map(file => (
-                                            <div 
-                                                key={file.id} 
-                                                onClick={() => setSelectedDriveFile(file)}
-                                                className={'flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-accent'}
-                                            >
-                                                <FileIcon className="h-5 w-5 text-muted-foreground" />
-                                                <span className="text-sm flex-grow">{file.name}</span>
-                                            </div>
-                                        ))}
+                                        <span className="text-sm flex-grow">{file.name}</span>
                                     </div>
-                                </ScrollArea>
-                                </>
-                            )}
-                        </div>
+                                ))}
+                            </div>
+                        </ScrollArea>
+                        </>
                     )}
                 </div>
             )}
