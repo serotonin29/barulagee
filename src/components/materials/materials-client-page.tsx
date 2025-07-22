@@ -16,6 +16,16 @@ import {
   DialogClose
 } from '@/components/ui/dialog';
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Form,
   FormControl,
   FormField,
@@ -39,6 +49,7 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
     const [items, setItems] = useState<DriveItem[]>(initialItems);
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
     const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<DriveItem | null>(null);
     const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
     const { toast } = useToast();
 
@@ -86,7 +97,39 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
     const handleMaterialAdd = (material: DriveItem) => {
       setItems(prev => [...prev, material]);
     }
+    
+    const handleDeleteRequest = (item: DriveItem) => {
+        setItemToDelete(item);
+    };
 
+    const confirmDelete = () => {
+        if (!itemToDelete) return;
+
+        const isFolder = itemToDelete.type === 'folder';
+        let itemsToRemove = new Set<string>([itemToDelete.id]);
+        
+        if (isFolder) {
+            const findChildrenRecursive = (folderId: string) => {
+                const children = items.filter(item => item.parentId === folderId);
+                children.forEach(child => {
+                    itemsToRemove.add(child.id);
+                    if (child.type === 'folder') {
+                        findChildrenRecursive(child.id);
+                    }
+                });
+            };
+            findChildrenRecursive(itemToDelete.id);
+        }
+
+        setItems(prev => prev.filter(item => !itemsToRemove.has(item.id)));
+        
+        toast({
+            title: `${isFolder ? 'Folder' : 'File'} Dihapus`,
+            description: `"${itemToDelete.name}" dan semua isinya telah dihapus.`,
+        });
+
+        setItemToDelete(null);
+    };
 
     return (
         <div className="space-y-6">
@@ -164,7 +207,24 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
                     </div>
                 )}
             </div>
-            <DriveItemGrid items={currentItems} onFolderClick={handleFolderClick} />
+            <DriveItemGrid items={currentItems} onFolderClick={handleFolderClick} onDeleteClick={handleDeleteRequest} />
+            
+            <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Anda yakin ingin menghapus?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Tindakan ini tidak dapat dibatalkan. Ini akan menghapus secara permanen 
+                             {itemToDelete?.type === 'folder' ? ' folder' : ' file'} <span className="font-bold">"{itemToDelete?.name}"</span>
+                             {itemToDelete?.type === 'folder' && ' dan semua isinya'}.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setItemToDelete(null)}>Batal</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDelete}>Hapus</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

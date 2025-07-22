@@ -6,9 +6,10 @@ import { DriveItemCard } from "./drive-item-card";
 type DriveItemGridProps = {
     items: DriveItem[];
     onFolderClick: (folderId: string) => void;
+    onDeleteClick: (item: DriveItem) => void;
 };
 
-export function DriveItemGrid({ items, onFolderClick }: DriveItemGridProps) {
+export function DriveItemGrid({ items, onFolderClick, onDeleteClick }: DriveItemGridProps) {
   
   const onItemClick = (item: DriveItem) => {
     if (item.type === 'folder') {
@@ -31,7 +32,12 @@ export function DriveItemGrid({ items, onFolderClick }: DriveItemGridProps) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
       {items.map((item) => (
-        <DriveItemCard key={item.id} item={item} onItemClick={onItemClick} />
+        <DriveItemCard 
+          key={item.id} 
+          item={item} 
+          onItemClick={onItemClick} 
+          onDeleteClick={onDeleteClick}
+        />
       ))}
     </div>
   );
