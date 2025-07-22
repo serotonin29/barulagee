@@ -23,17 +23,10 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { auth, db } from '@/lib/firebase';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, updateProfile, User } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 
@@ -41,9 +34,6 @@ const formSchema = z.object({
   fullName: z.string().min(3, { message: 'Full name must be at least 3 characters.' }),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
-  role: z.enum(['mahasiswa', 'dosen', 'admin'], {
-    required_error: 'You need to select a role.',
-  }),
 });
 
 export default function RegisterPage() {
@@ -61,6 +51,33 @@ export default function RegisterPage() {
     },
   });
 
+  const checkUserProfileAndRedirect = async (user: User) => {
+    const userDocRef = doc(db, 'users', user.uid);
+    const userDoc = await getDoc(userDocRef);
+
+    if (userDoc.exists() && userDoc.data()?.role) {
+        toast({
+            title: "Login Successful",
+            description: "An account with this Google account already exists. Redirecting to your dashboard...",
+        });
+        router.push('/dashboard');
+    } else {
+        await setDoc(userDocRef, {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            createdAt: new Date(),
+        }, { merge: true });
+        
+        toast({
+            title: "Account Created with Google",
+            description: "Please complete your profile to continue.",
+        });
+        router.push('/continue-registration');
+    }
+  };
+
   const handleRegister = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     try {
@@ -73,13 +90,12 @@ export default function RegisterPage() {
             uid: user.uid,
             displayName: values.fullName,
             email: values.email,
-            role: values.role,
             createdAt: new Date(),
         });
 
         toast({
             title: "Registration Successful",
-            description: "You can now log in with your new account.",
+            description: "Please log in and complete your profile.",
         });
         router.push('/login');
 
@@ -99,31 +115,7 @@ export default function RegisterPage() {
     const provider = new GoogleAuthProvider();
     try {
         const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-
-        if (userDoc.exists()) {
-            toast({
-                title: "Login Successful",
-                description: "An account with this Google account already exists. Logging you in.",
-            });
-            router.push('/dashboard');
-        } else {
-            await setDoc(userDocRef, {
-                uid: user.uid,
-                email: user.email,
-                displayName: user.displayName,
-                photoURL: user.photoURL,
-                createdAt: new Date(),
-            });
-            toast({
-                title: "Account Created with Google",
-                description: "Please complete your registration.",
-            });
-            router.push('/continue-registration');
-        }
+        await checkUserProfileAndRedirect(result.user);
     } catch (error: any) {
         toast({
             variant: "destructive",
@@ -193,28 +185,6 @@ export default function RegisterPage() {
                         disabled={anyLoading}
                         />
                     </FormControl>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-                <FormField
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Peran</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={anyLoading}>
-                        <FormControl>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Pilih peran Anda" />
-                        </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                        <SelectItem value="mahasiswa">Mahasiswa (Student)</SelectItem>
-                        <SelectItem value="dosen">Dosen (Lecturer)</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        </SelectContent>
-                    </Select>
                     <FormMessage />
                     </FormItem>
                 )}
