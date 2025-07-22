@@ -39,10 +39,10 @@ export function InteractiveNotebook() {
     setIsLoading(true);
 
     try {
-      // TODO: Implement RAG vs Non-RAG logic here.
-      // If useLocalContext is true, the smartSearch tool should be used
-      // to find relevant materials and inject them into the prompt.
-      const chatInput: AIChatbotInput = { query: currentInput };
+      const chatInput: AIChatbotInput = { 
+        query: currentInput,
+        contextualSearch: useLocalContext,
+      };
       const response = await aiChatbot(chatInput);
 
       const aiBlock: NotebookBlock = {

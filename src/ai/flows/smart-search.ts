@@ -6,6 +6,7 @@
  * - smartSearch - A function that allows students to search for learning materials using keywords or questions.
  * - SmartSearchInput - The input type for the smartSearch function.
  * - SmartSearchOutput - The return type for the smartSearch function.
+ * - searchMaterials - A Genkit tool to search for materials (exported for use in other flows).
  */
 
 import {ai} from '@/ai/genkit';
@@ -25,7 +26,7 @@ export async function smartSearch(input: SmartSearchInput): Promise<SmartSearchO
   return smartSearchFlow(input);
 }
 
-const searchMaterials = ai.defineTool({
+export const searchMaterials = ai.defineTool({
   name: 'searchMaterials',
   description: 'Searches for learning materials based on keywords or questions. Returns a list of relevant materials.',
   inputSchema: z.object({
@@ -36,6 +37,7 @@ const searchMaterials = ai.defineTool({
 async (input) => {
     // TODO: Replace with actual implementation to fetch learning materials from a database or external source.
     // This is a placeholder implementation.
+    console.log(`Searching materials for: ${input.query}`);
     const dummyResults = [
       `Anatomy Textbook - Chapter 1: ${input.query}`, 
       `Physiology Video - ${input.query} Explained`, 
@@ -54,7 +56,7 @@ const smartSearchPrompt = ai.definePrompt({
 
   User Query: {{{query}}}
   
-  Return a list of the materials that you found using the tool.
+  If you find materials using the tool, return the list of materials. If you don't find any, just say you couldn't find anything.
 `,
 });
 
@@ -66,6 +68,6 @@ const smartSearchFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await smartSearchPrompt(input);
-    return output!;
+    return output || { results: [] };
   }
 );

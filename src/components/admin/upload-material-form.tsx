@@ -45,10 +45,11 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   
   const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
   const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
-  const APP_ID = "5216400358";
+  const APP_ID = "neurozsis"; 
   const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
   
   const pickerCallback = useCallback((data: any) => {
+    setIsGoogleLoading(false);
     if (data.action === google.picker.Action.PICKED) {
       const files = data.docs;
       files.forEach((file: any) => {
@@ -61,7 +62,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
                     file.mimeType.includes('pdf') ? 'pdf' :
                     file.mimeType.includes('image') ? 'image' :
                     'text',
-          source: file.url,
+          source: file.url || file.embedUrl,
           coverImage: file.thumbnails?.[0]?.url || `https://placehold.co/600x400`,
         };
         onMaterialAdd(newMaterial);
@@ -72,14 +73,13 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       })
       onClose();
     }
-    setIsGoogleLoading(false);
   }, [currentFolderId, onMaterialAdd, onClose, toast]);
 
   const createPicker = useCallback(() => {
-    if (!pickerApiLoaded || !oauthToken.current || !window.google?.picker) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Picker API or Auth Token is not ready.' });
-      setIsGoogleLoading(false);
-      return;
+    if (!pickerApiLoaded || !oauthToken.current || typeof google?.picker === 'undefined') {
+       toast({ variant: 'destructive', title: 'Error', description: 'Google Picker API atau otentikasi belum siap.' });
+       setIsGoogleLoading(false);
+       return;
     }
     
     const view = new window.google.picker.DocsView()
@@ -102,7 +102,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     if (tokenClient.current) {
         tokenClient.current.requestAccessToken({prompt: ''});
     } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'Google Auth is not ready. Please wait a moment and try again.'});
+        toast({ variant: 'destructive', title: 'Error', description: 'Klien otentikasi Google belum siap. Coba lagi sebentar.'});
         setIsGoogleLoading(false);
     }
   }, [toast]);
@@ -110,7 +110,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   useEffect(() => {
     const gapiUrl = 'https://apis.google.com/js/api.js';
     const gisUrl = 'https://accounts.google.com/gsi/client';
-    
+
     const loadScript = (src: string, onLoad: () => void) => {
         if (document.querySelector(`script[src="${src}"]`)) {
             onLoad();
@@ -142,7 +142,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
                         oauthToken.current = tokenResponse;
                         createPicker();
                     } else {
-                        toast({ variant: 'destructive', title: 'Authentication Failed', description: 'Could not get access token from Google.' });
+                        toast({ variant: 'destructive', title: 'Otentikasi Gagal', description: 'Tidak bisa mendapatkan token akses dari Google.' });
                         setIsGoogleLoading(false);
                     }
                 },
