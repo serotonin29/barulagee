@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, FileUp, File as FileIcon, UploadCloud } from "lucide-react"
+import { Loader2, FileUp, File as FileIcon } from "lucide-react"
 import { Card } from "../ui/card"
 import type { DriveItem } from "@/types"
 
@@ -37,101 +37,26 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // --- Google Picker State ---
   const [gapiLoaded, setGapiLoaded] = useState(false);
   const [gisLoaded, setGisLoaded] = useState(false);
   const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
-  const [oauthToken, setOauthToken] = React.useState<google.accounts.oauth2.TokenResponse | null>(null);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  const tokenClient = useRef<any>(null);
+  
   const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
   const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
-  const APP_ID = "neurozsis";
+  const APP_ID = "5216400358";
   const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
   
-  let tokenClient = useRef<any>(null);
-
-  useEffect(() => {
-    const gapiUrl = 'https://apis.google.com/js/api.js';
-    const gisUrl = 'https://accounts.google.com/gsi/client';
-
-    const loadScript = (src: string, onLoad: () => void) => {
-      const script = document.createElement('script');
-      script.src = src;
-      script.async = true;
-      script.defer = true;
-      script.onload = onLoad;
-      document.body.appendChild(script);
-    };
-
-    loadScript(gapiUrl, () => setGapiLoaded(true));
-    loadScript(gisUrl, () => setGisLoaded(true));
-
-  }, []);
-
-  const initializePicker = useCallback(() => {
-    if (gapiLoaded && !pickerApiLoaded) {
-      window.gapi.load('picker', () => {
-        setPickerApiLoaded(true);
-      });
-    }
-  }, [gapiLoaded, pickerApiLoaded]);
-
-  useEffect(() => {
-    if (gisLoaded && gapiLoaded) {
-      initializePicker();
-      tokenClient.current = window.google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        callback: (tokenResponse) => {
-          if (tokenResponse && tokenResponse.access_token) {
-            setOauthToken(tokenResponse);
-            createPicker(tokenResponse);
-          } else {
-             toast({ variant: 'destructive', title: 'Authentication Failed', description: 'Could not get access token from Google.' });
-          }
-          setIsGoogleLoading(false);
-        },
-      });
-    }
-  }, [gisLoaded, gapiLoaded, initializePicker]);
-  
-  const handleAuthClick = () => {
-    setIsGoogleLoading(true);
-    if (tokenClient.current) {
-        tokenClient.current.requestAccessToken();
-    } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'Google Auth is not ready. Please wait a moment and try again.'});
-        setIsGoogleLoading(false);
-    }
-  };
-
-  const createPicker = (token: google.accounts.oauth2.TokenResponse) => {
-    if (!pickerApiLoaded || !token) return;
-
-    const view = new window.google.picker.DocsView()
-        .setIncludeFolders(true)
-        .setSelectFolderEnabled(true);
-
-    const picker = new window.google.picker.PickerBuilder()
-        .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
-        .setAppId(APP_ID)
-        .setOAuthToken(token.access_token)
-        .addView(view)
-        .setDeveloperKey(API_KEY)
-        .setCallback(pickerCallback)
-        .build();
-    picker.setVisible(true);
-  };
-  
-  const pickerCallback = (data: any) => {
+  const pickerCallback = useCallback((data: any, oauthToken: any) => {
     if (data.action === window.google.picker.Action.PICKED) {
       const files = data.docs;
       files.forEach((file: any) => {
         const newMaterial: DriveItem = {
           id: file.id,
           name: file.name,
-          type: 'file', // GDrive items are always files in this context
+          type: 'file',
           parentId: currentFolderId,
           fileType: file.mimeType.includes('video') ? 'video' :
                     file.mimeType.includes('pdf') ? 'pdf' :
@@ -148,14 +73,98 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       })
       onClose();
     }
-  };
+     setIsGoogleLoading(false);
+  }, [currentFolderId, onMaterialAdd, onClose, toast]);
 
+
+  const createPicker = useCallback((tokenResponse: google.accounts.oauth2.TokenResponse) => {
+    if (!pickerApiLoaded) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Picker API is not ready.' });
+      setIsGoogleLoading(false);
+      return;
+    }
+    
+    const view = new window.google.picker.DocsView()
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(true);
+
+    const picker = new window.google.picker.PickerBuilder()
+        .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
+        .setAppId(APP_ID)
+        .setOAuthToken(tokenResponse.access_token)
+        .addView(view)
+        .setDeveloperKey(API_KEY)
+        .setCallback((data: any) => pickerCallback(data, tokenResponse))
+        .build();
+    picker.setVisible(true);
+  }, [pickerApiLoaded, API_KEY, APP_ID, pickerCallback, toast]);
+
+
+  const handleAuthClick = useCallback(() => {
+    setIsGoogleLoading(true);
+    if (tokenClient.current) {
+        tokenClient.current.requestAccessToken();
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: 'Google Auth is not ready. Please wait a moment and try again.'});
+        setIsGoogleLoading(false);
+    }
+  }, [toast]);
+  
+
+  useEffect(() => {
+    const gapiUrl = 'https://apis.google.com/js/api.js';
+    const gisUrl = 'https://accounts.google.com/gsi/client';
+
+    const loadScript = (src: string, onLoad: () => void) => {
+      if (document.querySelector(`script[src="${src}"]`)) {
+        onLoad();
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.defer = true;
+      script.onload = onLoad;
+      document.body.appendChild(script);
+    };
+
+    loadScript(gapiUrl, () => setGapiLoaded(true));
+    loadScript(gisUrl, () => setGisLoaded(true));
+
+  }, []);
+
+  useEffect(() => {
+    if (gapiLoaded) {
+      window.gapi.load('picker', () => {
+        setPickerApiLoaded(true);
+      });
+    }
+  }, [gapiLoaded]);
+
+  useEffect(() => {
+    if (gisLoaded && CLIENT_ID) {
+      tokenClient.current = window.google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: (tokenResponse) => {
+          if (tokenResponse && tokenResponse.access_token) {
+            createPicker(tokenResponse);
+          } else {
+             toast({ variant: 'destructive', title: 'Authentication Failed', description: 'Could not get access token from Google.' });
+             setIsGoogleLoading(false);
+          }
+        },
+      });
+    }
+  }, [gisLoaded, CLIENT_ID, SCOPES, createPicker, toast]);
+  
 
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
     setUploadMethod(method);
-    setStep("details");
     if (method === 'gdrive') {
         handleAuthClick();
+    } else {
+        setStep("details");
     }
   }
   
@@ -220,10 +229,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
                 <FileUp className="w-8 h-8 text-primary"/>
                 <span className="text-sm font-medium text-center">File Lokal</span>
             </Card>
-             <Card onClick={() => {
-                setUploadMethod('gdrive');
-                handleAuthClick();
-             }} className="p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent transition-colors h-32">
+             <Card onClick={() => handleSelectMethod('gdrive')} className="p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent transition-colors h-32">
                 {isGoogleLoading ? <Loader2 className="w-8 h-8 animate-spin" /> : <GoogleIcon className="w-8 h-8"/>}
                 <span className="text-sm font-medium text-center">
                   {isGoogleLoading ? "Menghubungkan..." : "Google Drive"}
@@ -239,17 +245,6 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
 
   const renderDetailsStep = () => {
     if (!uploadMethod) return null;
-    
-    if (uploadMethod === 'gdrive') {
-        return (
-            <div className="flex flex-col items-center justify-center h-32">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="mt-4 text-muted-foreground">Membuka Google Picker...</p>
-                <p className="text-xs text-muted-foreground mt-1">Jika tidak ada yang muncul, pastikan popup tidak diblokir.</p>
-                 <Button variant="ghost" onClick={resetFlow} className="mt-4">Batal</Button>
-            </div>
-        )
-    }
 
     return (
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -288,5 +283,3 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     </div>
   )
 }
-
-    
