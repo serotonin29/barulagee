@@ -36,6 +36,7 @@ import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 const perks = [
     { id: 'alternative-medicine', label: 'Alternative Medicine', icon: '/perks/Alternative Medicine.png' },
@@ -200,8 +201,8 @@ export default function ContinueRegistrationPage() {
                 render={({ field }) => (
                     <FormItem>
                         <FormLabel>Minat Spesialisasi</FormLabel>
-                        <div className="relative">
-                            <div className="flex space-x-4 pt-2 overflow-x-auto pb-4">
+                        <ScrollArea className="w-full whitespace-nowrap">
+                            <div className="flex space-x-4 pt-2 pb-4">
                             {perks.map((perk) => {
                                 const isSelected = field.value?.includes(perk.id);
                                 return (
@@ -224,7 +225,8 @@ export default function ContinueRegistrationPage() {
                                 );
                             })}
                             </div>
-                        </div>
+                            <ScrollBar orientation="horizontal" />
+                        </ScrollArea>
                         <FormMessage />
                     </FormItem>
                 )}

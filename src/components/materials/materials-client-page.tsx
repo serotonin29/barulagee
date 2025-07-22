@@ -133,16 +133,16 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <BreadcrumbNavigation path={path} onBreadcrumbClick={handleBreadcrumbClick} />
 
                 {(userRole === 'admin' || userRole === 'dosen') && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                          <Dialog open={isFolderDialogOpen} onOpenChange={setIsFolderDialogOpen}>
                             <DialogTrigger asChild>
-                                <Button variant="outline">
+                                <Button variant="outline" size="sm">
                                     <FolderPlus className="mr-2 h-4 w-4" />
-                                    Buat Folder
+                                    Folder
                                 </Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-md">
@@ -183,9 +183,9 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
 
                         <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
                             <DialogTrigger asChild>
-                                <Button>
+                                <Button size="sm">
                                     <Upload className="mr-2 h-4 w-4" />
-                                    Upload Materi
+                                    Upload
                                 </Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-[625px]">

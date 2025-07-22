@@ -2,7 +2,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Brain, BrainCircuit, Stethoscope, Plus, Moon, Bell, ChevronDown, Bot, TrendingUp, Users } from 'lucide-react';
+import { Brain, BrainCircuit, Stethoscope, Plus, Moon, Bell, ChevronDown, Bot, TrendingUp, Users, Menu } from 'lucide-react';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg {...props} className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
@@ -43,17 +44,40 @@ export default function LandingPage() {
           </div>
           <span className="text-2xl font-bold text-gray-800">NeuroZsis</span>
         </div>
-        <div className="flex items-center gap-4">
+        <nav className="hidden md:flex items-center gap-4">
             <Link href="/login" passHref>
-                <Button variant="ghost" className="hidden md:inline-flex">
+                <Button variant="ghost">
                     Login
                 </Button>
             </Link>
             <Link href="/register" passHref>
-                <Button className="hidden md:inline-flex">
+                <Button>
                     Daftar Sekarang
                 </Button>
             </Link>
+        </nav>
+        <div className="md:hidden">
+            <Sheet>
+                <SheetTrigger asChild>
+                    <Button variant="outline" size="icon">
+                        <Menu className="h-6 w-6" />
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="right">
+                    <div className="flex flex-col gap-4 py-8">
+                        <Link href="/login" passHref>
+                            <Button variant="outline" className="w-full">
+                                Login
+                            </Button>
+                        </Link>
+                        <Link href="/register" passHref>
+                            <Button className="w-full">
+                                Daftar Sekarang
+                            </Button>
+                        </Link>
+                    </div>
+                </SheetContent>
+            </Sheet>
         </div>
       </header>
 
@@ -105,11 +129,11 @@ export default function LandingPage() {
       <footer className="w-full text-center text-muted-foreground text-sm py-8 border-t bg-card">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <p>© 2024 NeuroZsis. All Rights Reserved.</p>
-              <p className="mt-2">
+              <div className="mt-2 flex justify-center gap-2 flex-wrap">
                   <Link href="/privacy" className="hover:text-primary">Privacy Policy</Link>
-                  <span className="mx-2">|</span>
+                  <span className="hidden sm:inline-block">|</span>
                   <Link href="/terms" className="hover:text-primary">Terms of Service</Link>
-              </p>
+              </div>
           </div>
       </footer>
     </div>

@@ -31,54 +31,56 @@ export function LeaderboardTable() {
   return (
     <Card>
         <CardHeader>
-            <CardTitle>Papan Peringkat Mahasiswa</CardTitle>
-            <CardDescription>Lihat peringkat berdasarkan poin aktivitas belajar.</CardDescription>
+            <CardTitle>Papan Peringkat</CardTitle>
+            <CardDescription>Peringkat mahasiswa berdasarkan poin aktivitas.</CardDescription>
         </CardHeader>
         <CardContent>
             <Tabs defaultValue="all-time">
-                <TabsList className="grid w-full grid-cols-3 md:w-fit">
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="weekly">Mingguan</TabsTrigger>
                     <TabsTrigger value="monthly">Bulanan</TabsTrigger>
                     <TabsTrigger value="all-time">Semua</TabsTrigger>
                 </TabsList>
                 <TabsContent value="weekly">
-                    <p className="p-4 text-center text-muted-foreground">Data mingguan akan segera tersedia.</p>
+                    <p className="p-8 text-center text-muted-foreground">Data mingguan akan segera tersedia.</p>
                 </TabsContent>
                 <TabsContent value="monthly">
-                    <p className="p-4 text-center text-muted-foreground">Data bulanan akan segera tersedia.</p>
+                    <p className="p-8 text-center text-muted-foreground">Data bulanan akan segera tersedia.</p>
                 </TabsContent>
-                <TabsContent value="all-time">
-                    <Table>
-                    <TableHeader>
-                        <TableRow>
-                        <TableHead className="w-[80px]">Peringkat</TableHead>
-                        <TableHead>Nama Mahasiswa</TableHead>
-                        <TableHead className="text-right">Total Poin</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {leaderboardData.map((user) => (
-                        <TableRow key={user.rank}>
-                            <TableCell className="font-medium text-center">
-                                {user.rank <= 3 ? 
-                                    <Badge variant={user.rank === 1 ? 'default' : 'secondary'} className="text-lg">{user.rank}</Badge> : 
-                                    user.rank
-                                }
-                            </TableCell>
-                            <TableCell>
-                            <div className="flex items-center gap-3">
-                                <Avatar>
-                                <AvatarImage src={user.avatar} alt={user.name} data-ai-hint="student avatar" />
-                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <span className="font-medium">{user.name}</span>
-                            </div>
-                            </TableCell>
-                            <TableCell className="text-right font-bold text-primary">{user.points.toLocaleString()}</TableCell>
-                        </TableRow>
-                        ))}
-                    </TableBody>
-                    </Table>
+                <TabsContent value="all-time" className="mt-4">
+                    <div className="overflow-x-auto">
+                        <Table>
+                        <TableHeader>
+                            <TableRow>
+                            <TableHead className="w-[80px] text-center">Peringkat</TableHead>
+                            <TableHead>Nama Mahasiswa</TableHead>
+                            <TableHead className="text-right">Total Poin</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {leaderboardData.map((user) => (
+                            <TableRow key={user.rank}>
+                                <TableCell className="font-medium text-center">
+                                    {user.rank <= 3 ? 
+                                        <Badge variant={user.rank === 1 ? 'default' : 'secondary'} className="text-lg w-8 h-8 flex items-center justify-center">{user.rank}</Badge> : 
+                                        user.rank
+                                    }
+                                </TableCell>
+                                <TableCell>
+                                <div className="flex items-center gap-3">
+                                    <Avatar>
+                                    <AvatarImage src={user.avatar} alt={user.name} data-ai-hint="student avatar" />
+                                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <span className="font-medium truncate">{user.name}</span>
+                                </div>
+                                </TableCell>
+                                <TableCell className="text-right font-bold text-primary">{user.points.toLocaleString()}</TableCell>
+                            </TableRow>
+                            ))}
+                        </TableBody>
+                        </Table>
+                    </div>
                 </TabsContent>
             </Tabs>
         </CardContent>
