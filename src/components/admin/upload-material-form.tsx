@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, FileUp, Folder, File as FileIcon } from "lucide-react"
@@ -37,20 +37,81 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  const tokenClient = useRef<any>(null);
-  const oauthToken = useRef<any>(null);
-  
+  // --- Start of Google Picker Implementation ---
   const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
   const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
-  const APP_ID = "neurozsis"; 
   const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
   
-  const pickerCallback = useCallback((data: any) => {
+  // Use refs to store state that doesn't trigger re-renders
+  const gapiLoaded = useRef(false);
+  const pickerApiLoaded = useRef(false);
+  const oauthToken = useRef<string | null>(null);
+
+  const loadGapiScript = () => {
+    if (gapiLoaded.current) return;
+    const script = document.createElement('script');
+    script.src = 'https://apis.google.com/js/api.js';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      gapiLoaded.current = true;
+      (window as any).gapi.load('auth2:picker', () => {
+          pickerApiLoaded.current = true;
+          if (isGoogleLoading) { // If user clicked while scripts were loading
+            handleAuthClick();
+          }
+      });
+    };
+    document.body.appendChild(script);
+  };
+  
+  React.useEffect(() => {
+    loadGapiScript();
+  }, []);
+
+  const handleAuthResult = (authResult: any) => {
     setIsGoogleLoading(false);
-    if (data.action === google.picker.Action.PICKED) {
+    if (authResult && !authResult.error) {
+      oauthToken.current = authResult.access_token;
+      createPicker();
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Otentikasi Gagal',
+        description: 'Tidak dapat mendapatkan izin dari Google. Silakan coba lagi.',
+      });
+    }
+  };
+
+  const createPicker = () => {
+    if (!pickerApiLoaded.current || !oauthToken.current) {
+        toast({
+            variant: 'destructive',
+            title: 'Picker Error',
+            description: 'Google Picker tidak siap. Coba lagi.',
+        });
+        setIsGoogleLoading(false);
+        return;
+    }
+
+    const view = new (window as any).google.picker.DocsView()
+        .setIncludeFolders(false)
+        .setSelectFolderEnabled(false);
+
+    const picker = new (window as any).google.picker.PickerBuilder()
+        .enableFeature((window as any).google.picker.Feature.MULTISELECT_ENABLED)
+        .setOAuthToken(oauthToken.current)
+        .addView(view)
+        .setDeveloperKey(API_KEY)
+        .setCallback(pickerCallback)
+        .build();
+    picker.setVisible(true);
+  };
+
+  const pickerCallback = (data: any) => {
+    if (data.action === (window as any).google.picker.Action.PICKED) {
       const files = data.docs;
       files.forEach((file: any) => {
         const newMaterial: DriveItem = {
@@ -73,87 +134,29 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       })
       onClose();
     }
-  }, [currentFolderId, onMaterialAdd, onClose, toast]);
+  }
 
-  const createPicker = useCallback(() => {
-    if (!pickerApiLoaded || !oauthToken.current || typeof google?.picker === 'undefined') {
-       toast({ variant: 'destructive', title: 'Error', description: 'Google Picker API atau otentikasi belum siap.' });
-       setIsGoogleLoading(false);
-       return;
-    }
-    
-    const view = new window.google.picker.DocsView()
-        .setIncludeFolders(false)
-        .setSelectFolderEnabled(false);
-
-    const picker = new window.google.picker.PickerBuilder()
-        .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
-        .setAppId(APP_ID)
-        .setOAuthToken(oauthToken.current.access_token)
-        .addView(view)
-        .setDeveloperKey(API_KEY)
-        .setCallback(pickerCallback)
-        .build();
-    picker.setVisible(true);
-  }, [pickerApiLoaded, API_KEY, APP_ID, pickerCallback, toast]);
-
-  const handleAuthClick = useCallback(() => {
+  const handleAuthClick = () => {
     setIsGoogleLoading(true);
-    if (tokenClient.current) {
-        tokenClient.current.requestAccessToken({prompt: ''});
+    if (gapiLoaded.current && pickerApiLoaded.current) {
+      const authInstance = (window as any).gapi.auth2.getAuthInstance();
+      if (authInstance && authInstance.isSignedIn.get()) {
+          // If already signed in, just get the token and create picker
+          oauthToken.current = authInstance.currentUser.get().getAuthResponse().access_token;
+          createPicker();
+      } else {
+          // If not signed in, trigger the sign-in flow
+          (window as any).gapi.auth2.authorize(
+            { client_id: CLIENT_ID, scope: SCOPES, immediate: false },
+            handleAuthResult
+          );
+      }
     } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'Klien otentikasi Google belum siap. Coba lagi sebentar.'});
-        setIsGoogleLoading(false);
+      // Scripts are still loading, wait for onload to call this function again
+      loadGapiScript();
     }
-  }, [toast]);
-  
-  useEffect(() => {
-    const gapiUrl = 'https://apis.google.com/js/api.js';
-    const gisUrl = 'https://accounts.google.com/gsi/client';
-
-    const loadScript = (src: string, onLoad: () => void) => {
-        if (document.querySelector(`script[src="${src}"]`)) {
-            onLoad();
-            return;
-        }
-        const script = document.createElement('script');
-        script.src = src;
-        script.async = true;
-        script.defer = true;
-        script.onload = onLoad;
-        document.body.appendChild(script);
-    };
-
-    const gapiLoadCallback = () => {
-        if (window.gapi) {
-            window.gapi.load('picker', () => {
-                setPickerApiLoaded(true);
-            });
-        }
-    };
-
-    const gisLoadCallback = () => {
-        if (window.google?.accounts?.oauth2) {
-            tokenClient.current = window.google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: (tokenResponse) => {
-                    if (tokenResponse && tokenResponse.access_token) {
-                        oauthToken.current = tokenResponse;
-                        createPicker();
-                    } else {
-                        toast({ variant: 'destructive', title: 'Otentikasi Gagal', description: 'Tidak bisa mendapatkan token akses dari Google.' });
-                        setIsGoogleLoading(false);
-                    }
-                },
-            });
-        }
-    };
-    
-    loadScript(gapiUrl, gapiLoadCallback);
-    loadScript(gisUrl, gisLoadCallback);
-
-  }, [CLIENT_ID, SCOPES, createPicker, toast]);
+  };
+  // --- End of Google Picker Implementation ---
 
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
     setUploadMethod(method);
