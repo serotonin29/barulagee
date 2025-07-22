@@ -87,6 +87,8 @@ export default function ContinueRegistrationPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      nim: '',
+      whatsapp: '',
       perks: [],
     },
   });
