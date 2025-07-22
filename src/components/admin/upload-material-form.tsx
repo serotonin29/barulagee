@@ -37,9 +37,6 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // State to track script loading
-  const [gapiLoaded, setGapiLoaded] = useState(false);
-  const [gisLoaded, setGisLoaded] = useState(false);
   const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
@@ -51,58 +48,6 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const APP_ID = "5216400358";
   const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
   
-  // --- Script Loading ---
-  useEffect(() => {
-    const gapiUrl = 'https://apis.google.com/js/api.js';
-    const gisUrl = 'https://accounts.google.com/gsi/client';
-
-    const loadScript = (src: string, onLoad: () => void) => {
-      if (document.querySelector(`script[src="${src}"]`)) {
-        onLoad();
-        return;
-      }
-      const script = document.createElement('script');
-      script.src = src;
-      script.async = true;
-      script.defer = true;
-      script.onload = onLoad;
-      document.body.appendChild(script);
-    };
-
-    loadScript(gapiUrl, () => setGapiLoaded(true));
-    loadScript(gisUrl, () => setGisLoaded(true));
-  }, []);
-
-  // --- GAPI Dependent Hooks ---
-  useEffect(() => {
-    if (gapiLoaded) {
-      window.gapi.load('picker', () => {
-        setPickerApiLoaded(true);
-      });
-    }
-  }, [gapiLoaded]);
-
-  // --- GIS Dependent Hooks ---
-  useEffect(() => {
-    if (gisLoaded && CLIENT_ID) {
-      tokenClient.current = window.google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        callback: (tokenResponse) => {
-          if (tokenResponse && tokenResponse.access_token) {
-            oauthToken.current = tokenResponse;
-            createPicker();
-          } else {
-             toast({ variant: 'destructive', title: 'Authentication Failed', description: 'Could not get access token from Google.' });
-             setIsGoogleLoading(false);
-          }
-        },
-      });
-    }
-  }, [gisLoaded, CLIENT_ID, SCOPES, toast]);
-
-
-  // --- Core Functions ---
   const pickerCallback = useCallback((data: any) => {
     if (data.action === google.picker.Action.PICKED) {
       const files = data.docs;
@@ -131,7 +76,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   }, [currentFolderId, onMaterialAdd, onClose, toast]);
 
   const createPicker = useCallback(() => {
-    if (!pickerApiLoaded || !oauthToken.current) {
+    if (!pickerApiLoaded || !oauthToken.current || !window.google?.picker) {
       toast({ variant: 'destructive', title: 'Error', description: 'Picker API or Auth Token is not ready.' });
       setIsGoogleLoading(false);
       return;
@@ -162,6 +107,54 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     }
   }, [toast]);
   
+  useEffect(() => {
+    const gapiUrl = 'https://apis.google.com/js/api.js';
+    const gisUrl = 'https://accounts.google.com/gsi/client';
+    
+    const loadScript = (src: string, onLoad: () => void) => {
+        if (document.querySelector(`script[src="${src}"]`)) {
+            onLoad();
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.defer = true;
+        script.onload = onLoad;
+        document.body.appendChild(script);
+    };
+
+    const gapiLoadCallback = () => {
+        if (window.gapi) {
+            window.gapi.load('picker', () => {
+                setPickerApiLoaded(true);
+            });
+        }
+    };
+
+    const gisLoadCallback = () => {
+        if (window.google?.accounts?.oauth2) {
+            tokenClient.current = window.google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: (tokenResponse) => {
+                    if (tokenResponse && tokenResponse.access_token) {
+                        oauthToken.current = tokenResponse;
+                        createPicker();
+                    } else {
+                        toast({ variant: 'destructive', title: 'Authentication Failed', description: 'Could not get access token from Google.' });
+                        setIsGoogleLoading(false);
+                    }
+                },
+            });
+        }
+    };
+    
+    loadScript(gapiUrl, gapiLoadCallback);
+    loadScript(gisUrl, gisLoadCallback);
+
+  }, [CLIENT_ID, SCOPES, createPicker, toast]);
+
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
     setUploadMethod(method);
     if (method === 'gdrive') {
