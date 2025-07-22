@@ -45,7 +45,6 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedDriveFile, setSelectedDriveFile] = useState<DriveFile | null>(null)
   const [currentStep, setCurrentStep] = useState<'method' | 'details'>('method')
-  const [driveStep, setDriveStep] = useState<'connect' | 'select'>('connect');
   const [isConnecting, setIsConnecting] = useState(false);
   const { toast } = useToast()
 
@@ -94,7 +93,6 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     form.reset()
     setSelectedDriveFile(null)
     setCurrentStep('method');
-    setDriveStep('connect');
     onClose();
   }
   
@@ -107,7 +105,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     setIsConnecting(true);
     setTimeout(() => {
         setIsConnecting(false);
-        setDriveStep('select');
+        // Directly proceed to file selection simulation
     }, 1500); // Simulate network delay
   }
 
@@ -120,7 +118,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
                 <span className="text-sm font-medium text-center">File Lokal</span>
             </Card>
              <Card onClick={() => handleSelectMethod('gdrive')} className="p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent transition-colors h-32">
-                <UploadCloud className="w-8 h-8 text-primary"/>
+                <GoogleIcon className="w-8 h-8 text-primary"/>
                 <span className="text-sm font-medium text-center">Google Drive</span>
             </Card>
              <Card onClick={() => handleSelectMethod('embed')} className="p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent transition-colors h-32">
@@ -134,63 +132,53 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const renderDetailsStep = () => {
     if (!uploadMethod) return null;
 
-    const renderDriveContent = () => {
-        if (driveStep === 'connect') {
-            return (
-                <div className="text-center p-8 flex flex-col items-center justify-center h-[300px]">
-                    <UploadCloud className="w-12 h-12 text-muted-foreground mb-4" />
-                    <h4 className="font-semibold mb-2">Hubungkan ke Google Drive</h4>
-                    <p className="text-sm text-muted-foreground mb-6">Izinkan akses untuk mengimpor file langsung dari Drive Anda.</p>
-                    <Button onClick={handleConnectDrive} disabled={isConnecting}>
-                        {isConnecting ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <GoogleIcon />
-                        )}
-                        Hubungkan ke Google Drive
-                    </Button>
+    const renderDriveContent = () => (
+        <div className="min-h-[300px] flex flex-col">
+            <p className="text-sm font-medium mb-2">Pilih file dari Drive Anda (Simulasi):</p>
+            <ScrollArea className="h-64 rounded-md border">
+                <div className="p-2 space-y-1">
+                    {dummyDriveFiles.map(file => (
+                        <div 
+                            key={file.id} 
+                            onClick={() => setSelectedDriveFile(file)}
+                            className={`flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-accent ${selectedDriveFile?.id === file.id ? 'bg-accent' : ''}`}
+                        >
+                            <FileIcon className="h-5 w-5 text-muted-foreground" />
+                            <span className="text-sm flex-grow">{file.name}</span>
+                        </div>
+                    ))}
                 </div>
-            )
-        }
-
-        return (
-            <div className="min-h-[300px] flex flex-col">
-                <p className="text-sm font-medium mb-2">Pilih file dari Drive Anda (Simulasi):</p>
-                <ScrollArea className="h-64 rounded-md border">
-                    <div className="p-2 space-y-1">
-                        {dummyDriveFiles.map(file => (
-                            <div 
-                                key={file.id} 
-                                onClick={() => setSelectedDriveFile(file)}
-                                className={`flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-accent ${selectedDriveFile?.id === file.id ? 'bg-accent' : ''}`}
-                            >
-                                <FileIcon className="h-5 w-5 text-muted-foreground" />
-                                <span className="text-sm flex-grow">{file.name}</span>
-                            </div>
-                        ))}
-                    </div>
-                </ScrollArea>
-                {selectedDriveFile && (
-                     <div className="mt-4 p-3 border rounded-lg bg-muted/50">
-                        <p className="text-sm font-medium">File terpilih:</p>
-                        <p className="text-sm text-primary">{selectedDriveFile.name}</p>
-                     </div>
-                )}
-            </div>
-        );
-    }
+            </ScrollArea>
+            {selectedDriveFile && (
+                 <div className="mt-4 p-3 border rounded-lg bg-muted/50">
+                    <p className="text-sm font-medium">File terpilih:</p>
+                    <p className="text-sm text-primary">{selectedDriveFile.name}</p>
+                 </div>
+            )}
+        </div>
+    );
 
     return (
         <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="space-y-4">
             {uploadMethod === 'local' && (
-                <input type="file" onChange={(e) => form.setValue('localFile', e.target.files)} />
+                <div className="p-8 border-2 border-dashed rounded-lg flex flex-col items-center justify-center h-[300px]">
+                    <FileUp className="w-12 h-12 text-muted-foreground mb-4"/>
+                    <h4 className="font-semibold mb-2">Unggah File dari Komputer</h4>
+                    <p className="text-sm text-muted-foreground mb-4">Seret & lepas file atau klik untuk memilih.</p>
+                    <input type="file" onChange={(e) => form.setValue('localFile', e.target.files)} />
+                </div>
             )}
 
             {uploadMethod === 'embed' && (
-                 <Input 
-                    placeholder="https://www.youtube.com/watch?v=..." 
-                    {...form.register("fileUrl")}
-                 />
+                <div className="space-y-2 pt-8">
+                    <Label htmlFor="fileUrl">URL Materi</Label>
+                    <Input 
+                        id="fileUrl"
+                        placeholder="https://www.youtube.com/watch?v=..." 
+                        {...form.register("fileUrl")}
+                    />
+                    <p className="text-xs text-muted-foreground">Tempelkan tautan dari YouTube, Vimeo, atau sumber lain yang dapat disematkan.</p>
+                </div>
             )}
 
             {uploadMethod === 'gdrive' && renderDriveContent()}
@@ -224,3 +212,4 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     </div>
   )
 }
+    
