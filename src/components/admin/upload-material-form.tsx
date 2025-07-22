@@ -15,27 +15,14 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, UploadCloud, Link, FileUp } from "lucide-react"
+import { Loader2, UploadCloud, Link, FileUp, File as FileIcon } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ScrollArea } from "../ui/scroll-area"
 
 const formSchema = z.object({
   title: z.string().min(5, {
     message: "Judul harus memiliki setidaknya 5 karakter.",
-  }),
-  topic: z.string({
-    required_error: "Silakan pilih topik.",
-  }),
-  type: z.string({
-    required_error: "Silakan pilih tipe konten.",
   }),
   description: z.string().optional(),
   uploadMethod: z.enum(["local", "gdrive", "embed"]),
@@ -43,17 +30,23 @@ const formSchema = z.object({
   embedUrl: z.string().url().optional(),
   localFile: z.any().optional(),
 }).refine(data => {
-    if (data.uploadMethod === 'gdrive') return !!data.gdriveUrl;
-    if (data.uploadMethod === 'embed') return !!data.embedUrl;
-    if (data.uploadMethod === 'local') return !!data.localFile;
-    return false;
-}, {
-    message: "Please provide a source for the selected upload method.",
-    path: ["uploadMethod"],
+    // This validation is now more complex, will handle manually during submission.
+    return true;
 });
+
+const dummyDriveFiles = [
+    { id: '1', name: 'Neuroanatomy Lecture Notes.pdf', type: 'pdf' },
+    { id: '2', name: 'Cardiology Seminar.mp4', type: 'video' },
+    { id: '3', name: 'Project Outline - Group A', type: 'doc' },
+    { id: '4', name: 'Shared Research Papers', type: 'folder' },
+    { id: '5', name: 'Clinical Case Studies.pptx', type: 'ppt' },
+    { id: '6', name: 'Anatomy Atlas Scans', type: 'folder' },
+]
 
 export function UploadMaterialForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDriveConnected, setIsDriveConnected] = useState(false)
+  const [selectedDriveFile, setSelectedDriveFile] = useState<any>(null)
   const { toast } = useToast()
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -69,11 +62,10 @@ export function UploadMaterialForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true)
-    console.log("Form values:", values)
-    
+
     // TODO: Implement specific logic for each upload method
     // 1. Local: Upload file to a backend endpoint
-    // 2. GDrive: Validate URL, use backend to fetch and store
+    // 2. GDrive: Use the selected file ID to process on the backend
     // 3. Embed: Save the URL directly
     
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -85,6 +77,19 @@ export function UploadMaterialForm() {
     
     setIsSubmitting(false)
     form.reset()
+    setIsDriveConnected(false)
+    setSelectedDriveFile(null)
+  }
+  
+  const handleConnectDrive = () => {
+    // In a real app, this would trigger the Google OAuth flow.
+    // For now, we'll just simulate a successful connection.
+    setIsSubmitting(true);
+    setTimeout(() => {
+        setIsDriveConnected(true);
+        setIsSubmitting(false);
+        toast({ title: "Google Drive Terhubung", description: "Pilih file untuk diimpor." });
+    }, 1500);
   }
 
   return (
@@ -103,55 +108,7 @@ export function UploadMaterialForm() {
             </FormItem>
           )}
         />
-        <div className="grid md:grid-cols-2 gap-8">
-            <FormField
-            control={form.control}
-            name="topic"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Topik</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Pilih topik materi" />
-                    </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        <SelectItem value="Anatomy">Anatomi</SelectItem>
-                        <SelectItem value="Physiology">Fisiologi</SelectItem>
-                        <SelectItem value="Neurology">Neurologi</SelectItem>
-                        <SelectItem value="Pharmacology">Farmakologi</SelectItem>
-                    </SelectContent>
-                </Select>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-            <FormField
-            control={form.control}
-            name="type"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Tipe Konten</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Pilih tipe konten" />
-                    </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        <SelectItem value="pdf">PDF</SelectItem>
-                        <SelectItem value="video">Video</SelectItem>
-                        <SelectItem value="text">Teks</SelectItem>
-                        <SelectItem value="infographic">Infografik</SelectItem>
-                    </SelectContent>
-                </Select>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-        </div>
-
+        
         <FormField
           control={form.control}
           name="uploadMethod"
@@ -159,7 +116,10 @@ export function UploadMaterialForm() {
             <FormItem className="space-y-4">
                 <FormLabel>Metode Upload</FormLabel>
                  <FormControl>
-                    <Tabs defaultValue={field.value} onValueChange={field.onChange} className="w-full">
+                    <Tabs defaultValue={field.value} onValueChange={(value) => {
+                        field.onChange(value);
+                        setSelectedDriveFile(null); // Reset selection when changing tabs
+                    }} className="w-full">
                         <TabsList className="grid w-full grid-cols-3">
                             <TabsTrigger value="local"><FileUp className="mr-2 h-4 w-4"/>File Lokal</TabsTrigger>
                             <TabsTrigger value="gdrive"><UploadCloud className="mr-2 h-4 w-4"/>Google Drive</TabsTrigger>
@@ -181,23 +141,36 @@ export function UploadMaterialForm() {
                             )}
                             />
                         </TabsContent>
-                        <TabsContent value="gdrive" className="pt-4">
-                             <FormField
-                                control={form.control}
-                                name="gdriveUrl"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>URL Google Drive</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="https://docs.google.com/document/d/..." {...field} />
-                                    </FormControl>
-                                    <FormDescription>
-                                        Pastikan link dapat diakses secara publik (public sharing link).
-                                    </FormDescription>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                                />
+                        <TabsContent value="gdrive" className="pt-4 min-h-[250px] flex flex-col">
+                            {!isDriveConnected ? (
+                                <div className="flex-grow flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
+                                    <UploadCloud className="w-12 h-12 text-muted-foreground mb-4"/>
+                                    <h3 className="text-lg font-semibold">Hubungkan ke Google Drive</h3>
+                                    <p className="text-sm text-muted-foreground mb-4">Login dan berikan izin untuk mengakses file Anda.</p>
+                                    <Button type="button" onClick={handleConnectDrive} disabled={isSubmitting}>
+                                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                        Hubungkan Akun Google
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div>
+                                    <p className="text-sm font-medium mb-2">Pilih file dari Drive Anda:</p>
+                                    <ScrollArea className="h-64 rounded-md border">
+                                        <div className="p-2 space-y-1">
+                                            {dummyDriveFiles.map(file => (
+                                                <div 
+                                                    key={file.id} 
+                                                    onClick={() => setSelectedDriveFile(file)}
+                                                    className={`flex items-center gap-3 p-2 rounded-md cursor-pointer ${selectedDriveFile?.id === file.id ? 'bg-primary/10 ring-2 ring-primary' : 'hover:bg-accent'}`}
+                                                >
+                                                    <FileIcon className="h-5 w-5 text-muted-foreground" />
+                                                    <span className="text-sm flex-grow">{file.name}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </ScrollArea>
+                                </div>
+                            )}
                         </TabsContent>
                         <TabsContent value="embed" className="pt-4">
                             <FormField
