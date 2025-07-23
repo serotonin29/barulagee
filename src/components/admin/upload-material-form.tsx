@@ -37,64 +37,49 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // --- Google Picker Implementation ---
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-
-  // --- Start of Google Picker Implementation ---
+  const [isGisLoaded, setIsGisLoaded] = useState(false);
+  const [isGapiLoaded, setIsGapiLoaded] = useState(false);
+  const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
+  
+  const tokenClient = useRef<google.accounts.oauth2.TokenClient | null>(null);
+  const oauthToken = useRef<google.accounts.oauth2.TokenResponse | null>(null);
+  
   const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
   const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
   const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
-  
-  const gapiLoadedRef = useRef(false);
-  const gisLoadedRef = useRef(false);
-  const pickerApiLoadedRef = useRef(false);
-  const oauthToken = useRef<google.accounts.oauth2.TokenResponse | null>(null);
-  const tokenClient = useRef<google.accounts.oauth2.TokenClient | null>(null);
 
   useEffect(() => {
-    // Load GAPI script
-    const gapiScript = document.createElement('script');
-    gapiScript.src = 'https://apis.google.com/js/api.js';
-    gapiScript.async = true;
-    gapiScript.defer = true;
-    gapiScript.onload = () => {
-        gapiLoadedRef.current = true;
-        window.gapi.load('picker', () => {
-          pickerApiLoadedRef.current = true;
-        });
-    };
-    document.body.appendChild(gapiScript);
-
     // Load GIS script
     const gisScript = document.createElement('script');
     gisScript.src = 'https://accounts.google.com/gsi/client';
     gisScript.async = true;
     gisScript.defer = true;
-    gisScript.onload = () => {
-        gisLoadedRef.current = true;
-        tokenClient.current = window.google.accounts.oauth2.initTokenClient({
-            client_id: CLIENT_ID,
-            scope: SCOPES,
-            callback: (tokenResponse) => {
-              oauthToken.current = tokenResponse;
-              createPicker(); // Create picker right after getting the token
-            },
-            error_callback: (error) => {
-              setIsGoogleLoading(false);
-              toast({
-                variant: 'destructive',
-                title: 'Otentikasi Gagal',
-                description: `Gagal mendapatkan izin dari Google: ${error.message}`,
-              });
-            }
-        });
-    };
+    gisScript.onload = () => setIsGisLoaded(true);
     document.body.appendChild(gisScript);
 
+    // Load GAPI script
+    const gapiScript = document.createElement('script');
+    gapiScript.src = 'https://apis.google.com/js/api.js';
+    gapiScript.async = true;
+    gapiScript.defer = true;
+    gapiScript.onload = () => setIsGapiLoaded(true);
+    document.body.appendChild(gapiScript);
+
     return () => {
-      document.body.removeChild(gapiScript);
       document.body.removeChild(gisScript);
+      document.body.removeChild(gapiScript);
     };
-  }, [CLIENT_ID, SCOPES, toast]);
+  }, []);
+
+  useEffect(() => {
+    if (isGapiLoaded) {
+      window.gapi.load('picker', () => {
+        setPickerApiLoaded(true);
+      });
+    }
+  }, [isGapiLoaded]);
 
   const pickerCallback = useCallback((data: any) => {
     if (data.action === window.gapi.picker.Action.PICKED) {
@@ -122,10 +107,9 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     }
   }, [currentFolderId, onMaterialAdd, onClose, toast]);
 
-
   const createPicker = useCallback(() => {
     setIsGoogleLoading(false);
-    if (!pickerApiLoadedRef.current || !gapiLoadedRef.current || !oauthToken.current) {
+    if (!pickerApiLoaded || !oauthToken.current) {
         toast({
             variant: 'destructive',
             title: 'Picker Error',
@@ -146,11 +130,27 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         .setCallback(pickerCallback)
         .build();
     picker.setVisible(true);
-  }, [API_KEY, toast, pickerCallback]);
-
+  }, [API_KEY, toast, pickerCallback, pickerApiLoaded]);
+  
   const handleAuthClick = useCallback(() => {
     setIsGoogleLoading(true);
-    if (gisLoadedRef.current && tokenClient.current) {
+    if (isGisLoaded) {
+        tokenClient.current = window.google.accounts.oauth2.initTokenClient({
+            client_id: CLIENT_ID,
+            scope: SCOPES,
+            callback: (tokenResponse) => {
+              oauthToken.current = tokenResponse;
+              createPicker();
+            },
+            error_callback: (error) => {
+              setIsGoogleLoading(false);
+              toast({
+                variant: 'destructive',
+                title: 'Otentikasi Gagal',
+                description: `Gagal mendapatkan izin dari Google: ${error.message}`,
+              });
+            }
+        });
         tokenClient.current.requestAccessToken();
     } else {
         setIsGoogleLoading(false);
@@ -160,7 +160,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
             description: 'Klien otentikasi Google belum siap. Mohon tunggu sebentar dan coba lagi.',
         });
     }
-  }, [toast]);
+  }, [isGisLoaded, toast, createPicker, CLIENT_ID, SCOPES]);
   // --- End of Google Picker Implementation ---
 
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
