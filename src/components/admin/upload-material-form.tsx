@@ -144,12 +144,12 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         .setIncludeFolders(false)
         .setSelectFolderEnabled(false)
         .setOwnedByMe(false)
-        .setSort(new window.google.picker.DocsViewSort.SHARED_DATE_DESC);
+        .setSort(window.google.picker.SortOrder.LAST_MODIFIED_BY_ME);
         
     const recentView = new window.google.picker.DocsView()
         .setIncludeFolders(false)
         .setSelectFolderEnabled(false)
-        .setSort(new window.google.picker.DocsViewSort.LAST_OPENED);
+        .setSort(window.google.picker.SortOrder.LAST_OPENED);
 
     const picker = new window.google.picker.PickerBuilder()
         .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
@@ -310,5 +310,3 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     </div>
   )
 }
-
-    
