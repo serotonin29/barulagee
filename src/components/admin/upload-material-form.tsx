@@ -13,6 +13,13 @@ import { Label } from "../ui/label"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form"
 
 const GoogleIconSvg = (props: React.SVGProps<SVGSVGElement>) => (
     <svg {...props} className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
@@ -21,7 +28,16 @@ const GoogleIconSvg = (props: React.SVGProps<SVGSVGElement>) => (
 )
 
 const formSchema = z.object({
-  fileUrl: z.string().url().optional(),
+  fileUrl: z.string().optional(),
+}).refine((data) => {
+    const uploadMethod = (document.querySelector('[data-upload-method]') as HTMLElement)?.dataset.uploadMethod;
+    if (uploadMethod === 'embed') {
+        return z.string().url({ message: "Please enter a valid URL." }).safeParse(data.fileUrl).success;
+    }
+    return true;
+}, {
+    path: ['fileUrl'],
+    message: "Please enter a valid URL for the embed method."
 });
 
 type UploadMaterialFormProps = {
@@ -86,7 +102,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         callback: (tokenResponse) => {
           setIsGoogleLoading(false);
           if (tokenResponse.error) {
-            toast({ variant: 'destructive', title: 'Otentikasi Gagal', description: tokenResponse.error_description });
+            toast({ variant: 'destructive', title: 'Authentication Failed', description: tokenResponse.error_description });
           } else {
             setOauthToken(tokenResponse);
           }
@@ -94,7 +110,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       });
     }
   }, [gisLoaded, CLIENT_ID, SCOPES, toast]);
-
+  
   const pickerCallback = useCallback((data: any) => {
     if (data.action === window.google.picker.Action.PICKED) {
       const files = data.docs;
@@ -114,38 +130,32 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         onMaterialAdd(newMaterial);
       });
       toast({
-        title: "Materi Dipilih",
-        description: `${files.length} file telah ditambahkan dari Google Drive.`,
+        title: "Materials Selected",
+        description: `${files.length} file(s) have been added from Google Drive.`,
       })
       onClose();
     } else if (data.action === window.google.picker.Action.CANCEL) {
       // User cancelled, do nothing.
     }
   }, [currentFolderId, onMaterialAdd, onClose, toast]);
-  
+
   const createPicker = useCallback(() => {
     if (!pickerApiLoaded || !oauthToken) {
       toast({
           variant: 'destructive',
           title: 'Picker Error',
-          description: 'Google Picker tidak siap. Coba lagi.',
+          description: 'Google Picker is not ready. Please try again.',
       });
       setIsGoogleLoading(false);
       return;
     }
     
-    const myDriveView = new window.google.picker.DocsView()
-        .setIncludeFolders(false)
-        .setSelectFolderEnabled(false);
+    const myDriveView = new window.google.picker.DocsView();
 
     const sharedWithMeView = new window.google.picker.DocsView()
-        .setIncludeFolders(false)
-        .setSelectFolderEnabled(false)
-        .setOwnedByMe(false)
+        .setOwnedByMe(false);
 
     const recentView = new window.google.picker.DocsView()
-        .setIncludeFolders(false)
-        .setSelectFolderEnabled(false)
         .setSort(window.google.picker.SortOrder.LAST_OPENED_BY_ME);
 
     const picker = new window.google.picker.PickerBuilder()
@@ -174,7 +184,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Klien otentikasi Google belum siap. Mohon tunggu.',
+        description: 'Google authentication client is not ready. Please wait.',
       });
       setIsGoogleLoading(false);
     }
@@ -198,10 +208,13 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   }
 
   const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema)
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      fileUrl: "",
+    }
   });
   
-  async function onSubmit() {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true)
     
     let submissionData: Partial<DriveItem> = { 
@@ -210,8 +223,6 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         type: 'file',
         parentId: currentFolderId,
     };
-    
-    const values = form.getValues();
 
     if (uploadMethod === 'embed' && values.fileUrl) {
         try {
@@ -219,24 +230,27 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         } catch (e) {
             submissionData.name = "Embedded Link"
         }
-        submissionData.fileType = 'video';
+        submissionData.fileType = 'video'; // Assuming embed links are mostly videos
         submissionData.source = values.fileUrl;
+        submissionData.coverImage = `https://placehold.co/600x400`;
     } else if (uploadMethod === 'local' && fileInputRef.current?.files) {
         const file = fileInputRef.current.files[0];
         if (file) {
           submissionData.name = file.name;
-          submissionData.fileType = 'pdf'; 
+          submissionData.fileType = 'pdf'; // Placeholder, would need more logic for file types
           submissionData.source = "local-file-placeholder";
+          submissionData.coverImage = `https://placehold.co/600x400`;
         }
     }
 
+    // Simulate upload delay
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     onMaterialAdd(submissionData as DriveItem);
 
     toast({
-      title: "Materi Ditambahkan",
-      description: `Materi "${submissionData.name}" telah ditambahkan.`,
+      title: "Material Added",
+      description: `"${submissionData.name}" has been added.`,
     })
     
     onClose();
@@ -244,16 +258,16 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
 
   const renderMethodStep = () => (
     <div className="space-y-4 text-center">
-        <h3 className="font-medium">Pilih Metode Unggah Materi</h3>
+        <h3 className="font-medium">Choose Upload Method</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
             <Card onClick={() => handleSelectMethod('local')} className="p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent transition-colors h-32">
                 <FileUp className="w-8 h-8 text-primary"/>
-                <span className="text-sm font-medium text-center">File Lokal</span>
+                <span className="text-sm font-medium text-center">Local File</span>
             </Card>
              <Card onClick={() => handleSelectMethod('gdrive')} className="p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent transition-colors h-32">
                 {isGoogleLoading ? <Loader2 className="w-8 h-8 animate-spin" /> : <GoogleIconSvg className="w-8 h-8"/>}
                 <span className="text-sm font-medium text-center">
-                  {isGoogleLoading ? "Menghubungkan..." : "Google Drive"}
+                  {isGoogleLoading ? "Connecting..." : "Google Drive"}
                 </span>
             </Card>
              <Card onClick={() => handleSelectMethod('embed')} className="p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent transition-colors h-32">
@@ -268,36 +282,46 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     if (!uploadMethod) return null;
 
     return (
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-             <div className="flex justify-between items-center mb-2">
-                <h3 className="font-medium capitalize">{uploadMethod} Upload</h3>
-                <Button type="button" variant="ghost" size="icon" onClick={resetFlow} className="h-7 w-7"><X /></Button>
-            </div>
-            {uploadMethod === 'local' && (
-                <div className="space-y-2">
-                    <Label htmlFor="localFile">Unggah File</Label>
-                    <Input id="localFile" type="file" ref={fileInputRef} />
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" data-upload-method={uploadMethod}>
+                 <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-medium capitalize">{uploadMethod} Upload</h3>
+                    <Button type="button" variant="ghost" size="icon" onClick={resetFlow} className="h-7 w-7"><X /></Button>
                 </div>
-            )}
+                {uploadMethod === 'local' && (
+                    <div className="space-y-2">
+                        <Label htmlFor="localFile">Upload File</Label>
+                        <Input id="localFile" type="file" ref={fileInputRef} />
+                    </div>
+                )}
 
-            {uploadMethod === 'embed' && (
-                <div className="space-y-2">
-                    <Label htmlFor="fileUrl">URL Materi</Label>
-                    <Input 
-                        id="fileUrl"
-                        placeholder="https://www.youtube.com/watch?v=..." 
-                        {...form.register("fileUrl")}
-                    />
-                </div>
-            )}
+                {uploadMethod === 'embed' && (
+                  <FormField
+                    control={form.control}
+                    name="fileUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <Label>Material URL</Label>
+                        <FormControl>
+                          <Input 
+                              placeholder="https://www.youtube.com/watch?v=..." 
+                              {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
-             <div className="flex justify-end items-center pt-4">
-                <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Simpan Materi
-                </Button>
-             </div>
-        </form>
+                 <div className="flex justify-end items-center pt-4">
+                    <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Save Material
+                    </Button>
+                 </div>
+            </form>
+        </Form>
     )
   }
   
@@ -307,5 +331,3 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     </div>
   )
 }
-
-    
