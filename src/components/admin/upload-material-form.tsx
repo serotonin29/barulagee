@@ -61,7 +61,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
-  const localAccessToken = useRef<string | null>(null);
+  const [oauthToken, setOauthToken] = useState<string | null>(null);
 
   const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
   
@@ -90,8 +90,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         const result = await signInWithPopup(auth, provider);
         const credential = GoogleAuthProvider.credentialFromResult(result);
         if (credential?.accessToken) {
-            localAccessToken.current = credential.accessToken;
-            createPicker();
+            setOauthToken(credential.accessToken);
         } else {
             throw new Error("Could not get access token from Google");
         }
@@ -101,7 +100,6 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
             title: "Google Authentication Failed",
             description: error.message,
         });
-    } finally {
         setIsGoogleLoading(false);
     }
   };
@@ -109,6 +107,11 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const handleFilePicked = useCallback(async (data: any) => {
     setIsGoogleLoading(true);
     try {
+      if (data.action !== google.picker.Action.PICKED) {
+        setIsGoogleLoading(false);
+        return;
+      }
+      
       const file = data.docs[0];
       const fileId = file.id;
 
@@ -118,7 +121,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       });
 
       const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-        headers: { 'Authorization': `Bearer ${localAccessToken.current}` }
+        headers: { 'Authorization': `Bearer ${oauthToken}` }
       });
 
       if (!res.ok) {
@@ -146,6 +149,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
                   file.mimeType.includes('image') ? 'image' :
                   'text',
         source: downloadURL,
+        sourceType: 'firebase-storage',
         coverImage: file.thumbnails?.[0]?.url || `https://placehold.co/600x400`,
       };
       
@@ -162,11 +166,12 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     } finally {
       setIsGoogleLoading(false);
     }
-  }, [currentFolderId, onMaterialAdd, onClose, toast]);
+  }, [currentFolderId, onMaterialAdd, onClose, toast, oauthToken]);
 
   const createPicker = useCallback(() => {
-    if (!pickerApiLoaded || !localAccessToken.current) {
-        toast({ variant: 'destructive', title: 'Picker Error', description: 'Google Picker is not ready or authentication failed.' });
+    if (!pickerApiLoaded || !oauthToken || !window.google?.picker) {
+        // This condition will be hit if the user clicks the button before everything is ready.
+        // handleDriveAuth will be called, and this function will re-trigger via useEffect.
         return;
     }
     
@@ -176,14 +181,13 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         .setOwnedByMe(false);
         
     const recentView = new window.google.picker.DocsView();
-    if(window.google?.picker?.SortOrder) {
+    if(window.google?.picker?.SortOrder?.LAST_OPENED_BY_ME) {
         recentView.setSort(window.google.picker.SortOrder.LAST_OPENED_BY_ME);
     }
 
-
     const picker = new window.google.picker.PickerBuilder()
-        .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
-        .setOAuthToken(localAccessToken.current)
+        .setAppId(process.env.NEXT_PUBLIC_GOOGLE_APP_ID || '')
+        .setOAuthToken(oauthToken)
         .setDeveloperKey(API_KEY)
         .addView(myDriveView)
         .addView(sharedWithMeView)
@@ -191,7 +195,15 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         .setCallback(handleFilePicked)
         .build();
     picker.setVisible(true);
-  }, [API_KEY, pickerApiLoaded, handleFilePicked, toast]);
+    setIsGoogleLoading(false); // Picker is now visible, loading is done
+  }, [API_KEY, pickerApiLoaded, handleFilePicked, oauthToken]);
+
+  useEffect(() => {
+    if (oauthToken && pickerApiLoaded) {
+      createPicker();
+    }
+  }, [oauthToken, pickerApiLoaded, createPicker]);
+
 
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
     setUploadMethod(method);
@@ -207,6 +219,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     setUploadMethod(null);
     setIsSubmitting(false);
     setIsGoogleLoading(false);
+    setOauthToken(null);
     form.reset();
   }
 
@@ -272,6 +285,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
                                       file.type === 'application/pdf' ? 'pdf' :
                                       file.type.startsWith('video/') ? 'video' : 'text';
             submissionData.source = downloadURL;
+            submissionData.sourceType = 'firebase-storage';
             submissionData.coverImage = `https://placehold.co/600x400`;
           } catch(e: any) {
               console.error("Local upload error", e);
@@ -374,5 +388,3 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     </div>
   )
 }
-
-    
