@@ -165,11 +165,9 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         });
     }
 
-    if (!oauthToken.current) {
-        tokenClient.current.requestAccessToken({ prompt: 'consent' });
-    } else {
-        createPicker();
-    }
+    // Always request a token to ensure it's fresh,
+    // Google's library handles caching and will only show the popup if necessary.
+    tokenClient.current.requestAccessToken({ prompt: '' });
   }, [gisLoaded, gapiLoaded, toast, createPicker, CLIENT_ID, SCOPES]);
   
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
@@ -299,3 +297,5 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     </div>
   )
 }
+
+    
