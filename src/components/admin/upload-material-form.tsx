@@ -193,6 +193,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         .setAppId(APP_ID)
         .setOAuthToken(token)
         .setDeveloperKey(API_KEY)
+        .setOrigin(window.location.origin)
         .addView(myDriveView)
         .addView(recentView)
         .setCallback((data: any) => handleFilePicked(data, token))
@@ -392,5 +393,3 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     </div>
   )
 }
-
-    
