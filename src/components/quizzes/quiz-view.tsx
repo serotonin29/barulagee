@@ -8,17 +8,28 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle, BookOpen } from 'lucide-react';
 
 type AnswerState = {
   [questionId: string]: string;
 };
 
 export function QuizView() {
-  const [selectedQuiz, setSelectedQuiz] = useState(quizzes[0]);
+  const [selectedQuiz, setSelectedQuiz] = useState(quizzes.length > 0 ? quizzes[0] : null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<AnswerState>({});
   const [isFinished, setIsFinished] = useState(false);
+
+  // Show empty state if no quizzes available
+  if (!selectedQuiz || quizzes.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-center rounded-lg border-2 border-dashed mx-4 md:mx-0">
+        <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
+        <h3 className="text-lg font-semibold">Belum ada kuis tersedia</h3>
+        <p className="text-muted-foreground">Kuis interaktif akan ditambahkan segera.</p>
+      </div>
+    );
+  }
 
   const currentQuestion = selectedQuiz.questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / selectedQuiz.questions.length) * 100;
@@ -51,7 +62,7 @@ export function QuizView() {
     const score = calculateScore();
     const total = selectedQuiz.questions.length;
     return (
-        <Card>
+        <Card className="w-full max-w-2xl mx-auto">
             <CardHeader>
                 <CardTitle>Quiz Complete!</CardTitle>
                 <CardDescription>You scored {score} out of {total}.</CardDescription>

@@ -36,8 +36,9 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/auth-context';
 import { UploadMaterialForm } from '@/components/admin/upload-material-form';
-import { FolderPlus, Upload, Loader2, Youtube } from 'lucide-react';
+import { FolderPlus, Upload, Loader2, Download, Eye } from 'lucide-react';
 import type { DriveItem } from '@/types';
 import { BreadcrumbNavigation } from './breadcrumb-navigation';
 import { DriveItemGrid } from './drive-item-grid';
@@ -69,9 +70,7 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
     const [showWarning, setShowWarning] = useState(false);
     const [previewItem, setPreviewItem] = useState<DriveItem | null>(null);
     const { toast } = useToast();
-
-    // TODO: Replace with actual role check from user session
-    const userRole = 'admin';
+    const { permissions } = useAuth();
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -109,17 +108,13 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
     };
     
     const handleFileClick = (file: DriveItem) => {
-        if (file.source) {
-            if (file.sourceType === 'youtube' || file.sourceType === 'firebase-storage') {
-                setPreviewItem(file);
-            } else if (file.source.startsWith('http')) {
-                window.open(file.source, '_blank');
-            } else {
-                alert(`Cannot open this file type.`);
-            }
-        } else {
-            alert(`File source not available.`);
-        }
+        // Always show preview only - prevent direct downloads and external links
+        setPreviewItem(file);
+        
+        toast({
+            title: "Preview Mode",
+            description: "File ditampilkan dalam mode preview untuk menjaga keamanan konten.",
+        });
     };
 
     const handleBreadcrumbClick = (folderId: string | null) => {
@@ -163,7 +158,7 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
         if (!itemToDelete) return;
 
         const isFolder = itemToDelete.type === 'folder';
-        let itemsToRemove = new Set<string>([itemToDelete.id]);
+        const itemsToRemove = new Set<string>([itemToDelete.id]);
         
         if (isFolder) {
             const findChildrenRecursive = (folderId: string) => {
@@ -189,14 +184,20 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6">
              <AlertDialog open={showWarning} onOpenChange={setShowWarning}>
-                <AlertDialogContent>
+                <AlertDialogContent className="max-w-md mx-4 md:max-w-lg">
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Perhatian Penting!</AlertDialogTitle>
-                        <div className="text-sm text-muted-foreground pt-2">
+                        <AlertDialogTitle className="text-lg md:text-xl">Perhatian Penting!</AlertDialogTitle>
+                        <div className="text-sm text-muted-foreground pt-2 space-y-2">
                             <span>Semua materi yang tersedia di halaman ini bersifat rahasia dan hanya untuk penggunaan internal dalam lingkungan akademik.</span>
-                            <div className="mt-4">Dengan melanjutkan, Anda setuju untuk <strong>tidak membagikan, menyebarkan, atau mendistribusikan</strong> konten ini kepada pihak mana pun di luar platform ini.</div>
+                            <div>Dengan melanjutkan, Anda setuju untuk <strong>tidak membagikan, menyebarkan, atau mendistribusikan</strong> konten ini kepada pihak mana pun di luar platform ini.</div>
+                            <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                                <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
+                                    <Eye className="h-4 w-4" />
+                                    <span className="text-xs font-medium">File hanya dapat dilihat dalam mode preview</span>
+                                </div>
+                            </div>
                         </div>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -204,137 +205,167 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                <BreadcrumbNavigation path={path} onBreadcrumbClick={handleBreadcrumbClick} />
+            
+            <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4">
+                <div className="min-w-0 flex-1">
+                    <BreadcrumbNavigation path={path} onBreadcrumbClick={handleBreadcrumbClick} />
+                </div>
 
-                {(userRole === 'admin' || userRole === 'dosen') && (
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                         <Dialog open={isFolderDialogOpen} onOpenChange={setIsFolderDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                    <FolderPlus className="mr-2 h-4 w-4" />
-                                    Folder
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-md">
-                                <DialogHeader>
-                                    <DialogTitle>Buat Folder Baru</DialogTitle>
-                                    <DialogDescription>
-                                        Masukkan nama untuk folder baru Anda di direktori saat ini.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <Form {...form}>
-                                    <form onSubmit={form.handleSubmit(handleCreateFolderSubmit)} className="space-y-4 pt-4">
-                                        <FormField
-                                            control={form.control}
-                                            name="name"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel className="sr-only">Nama Folder</FormLabel>
-                                                    <FormControl>
-                                                        <Input placeholder="Contoh: Materi Anatomi Lanjutan" {...field} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
+                {(permissions.canUploadMaterials || permissions.canCreateFolders) && (
+                    <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                         {permissions.canCreateFolders && (
+                            <Dialog open={isFolderDialogOpen} onOpenChange={setIsFolderDialogOpen}>
+                                <DialogTrigger asChild>
+                                    <Button variant="outline" size="sm" className="text-xs md:text-sm">
+                                        <FolderPlus className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                                        <span className="hidden sm:inline">Folder</span>
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="mx-4 max-w-md md:max-w-lg">
+                                    <DialogHeader>
+                                        <DialogTitle>Buat Folder Baru</DialogTitle>
+                                        <DialogDescription>
+                                            Masukkan nama untuk folder baru Anda di direktori saat ini.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <Form {...form}>
+                                        <form onSubmit={form.handleSubmit(handleCreateFolderSubmit)} className="space-y-4 pt-4">
+                                            <FormField
+                                                control={form.control}
+                                                name="name"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="sr-only">Nama Folder</FormLabel>
+                                                        <FormControl>
+                                                            <Input placeholder="Contoh: Materi Anatomi Lanjutan" {...field} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <DialogFooter className="flex-col sm:flex-row gap-2">
+                                                <DialogClose asChild>
+                                                    <Button type="button" variant="secondary" className="w-full sm:w-auto">Batal</Button>
+                                                </DialogClose>
+                                                <Button type="submit" disabled={form.formState.isSubmitting} className="w-full sm:w-auto">
+                                                    {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                    Buat
+                                                </Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </Form>
+                                </DialogContent>
+                            </Dialog>
+                         )}
+
+                        {permissions.canUploadMaterials && (
+                            <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+                                <DialogTrigger asChild>
+                                    <Button size="sm" className="text-xs md:text-sm">
+                                        <Upload className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                                        <span className="hidden sm:inline">Upload</span>
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="mx-4 max-w-md md:max-w-2xl max-h-[90vh] overflow-y-auto">
+                                    <DialogHeader>
+                                        <DialogTitle>Tambahkan Materi Pembelajaran</DialogTitle>
+                                        <DialogDescription>
+                                            Unggah file, impor dari Google Drive, atau sematkan dari URL.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="pt-4">
+                                        <UploadMaterialForm 
+                                          onMaterialAdd={handleMaterialAdd}
+                                          onClose={() => setIsUploadDialogOpen(false)}
+                                          currentFolderId={currentFolderId}
                                         />
-                                        <DialogFooter>
-                                            <DialogClose asChild>
-                                                <Button type="button" variant="secondary">Batal</Button>
-                                            </DialogClose>
-                                            <Button type="submit" disabled={form.formState.isSubmitting}>
-                                                {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                                Buat
-                                            </Button>
-                                        </DialogFooter>
-                                    </form>
-                                </Form>
-                            </DialogContent>
-                        </Dialog>
-
-                        <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button size="sm">
-                                    <Upload className="mr-2 h-4 w-4" />
-                                    Upload
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-[625px]">
-                                <DialogHeader>
-                                    <DialogTitle>Tambahkan Materi Pembelajaran</DialogTitle>
-                                    <DialogDescription>
-                                        Unggah file, impor dari Google Drive, atau sematkan dari URL.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <div className="pt-4">
-                                    <UploadMaterialForm 
-                                      onMaterialAdd={handleMaterialAdd}
-                                      onClose={() => setIsUploadDialogOpen(false)}
-                                      currentFolderId={currentFolderId}
-                                    />
-                                </div>
-                            </DialogContent>
-                        </Dialog>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
+                        )}
                     </div>
                 )}
             </div>
+            
             <DriveItemGrid 
                 items={currentItems} 
                 onFolderClick={handleFolderClick} 
                 onFileClick={handleFileClick}
-                onDeleteClick={handleDeleteRequest} 
+                onDeleteClick={permissions.canDeleteMaterials ? handleDeleteRequest : undefined} 
             />
             
-            <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Anda yakin ingin menghapus?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Tindakan ini tidak dapat dibatalkan. Ini akan menghapus secara permanen 
-                             {itemToDelete?.type === 'folder' ? ' folder' : ' file'} <span className="font-bold">"{itemToDelete?.name}"</span>
-                             {itemToDelete?.type === 'folder' && ' dan semua isinya'}.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setItemToDelete(null)}>Batal</AlertDialogCancel>
-                        <AlertDialogAction onClick={confirmDelete}>Hapus</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+            {permissions.canDeleteMaterials && (
+                <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+                    <AlertDialogContent className="mx-4 max-w-md md:max-w-lg">
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Anda yakin ingin menghapus?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Tindakan ini tidak dapat dibatalkan. Ini akan menghapus secara permanen 
+                                 {itemToDelete?.type === 'folder' ? ' folder' : ' file'} <span className="font-bold">&quot;{itemToDelete?.name}&quot;</span>
+                                 {itemToDelete?.type === 'folder' && ' dan semua isinya'}.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                            <AlertDialogCancel onClick={() => setItemToDelete(null)} className="w-full sm:w-auto">Batal</AlertDialogCancel>
+                            <AlertDialogAction onClick={confirmDelete} className="w-full sm:w-auto">Hapus</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            )}
             
             <Dialog open={!!previewItem} onOpenChange={(open) => !open && setPreviewItem(null)}>
-                <DialogContent className="max-w-4xl h-[80vh]">
-                    <DialogHeader>
-                        <DialogTitle>{previewItem?.name}</DialogTitle>
+                <DialogContent className="mx-2 md:mx-4 max-w-full md:max-w-4xl h-[85vh] md:h-[80vh] flex flex-col">
+                    <DialogHeader className="flex-shrink-0">
+                        <DialogTitle className="text-sm md:text-base truncate">{previewItem?.name}</DialogTitle>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Eye className="h-3 w-3" />
+                            <span>Mode Preview - Download tidak tersedia</span>
+                        </div>
                     </DialogHeader>
-                    <div className="h-full w-full flex items-center justify-center bg-black">
+                    <div className="flex-1 min-h-0 w-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-lg overflow-hidden">
                     {previewItem?.sourceType === 'youtube' && previewItem.source ? (
                         <iframe 
-                            width="100%" 
-                            height="100%"
-                            src={previewItem.source}
+                            className="w-full h-full"
+                            src={`${previewItem.source}?autoplay=0&controls=1&disablekb=1&fs=0&modestbranding=1&rel=0`}
                             title="YouTube video player" 
                             frameBorder="0" 
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                            allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                             allowFullScreen
                         ></iframe>
                     ) : previewItem?.source && (previewItem.fileType === 'pdf' || previewItem.fileType === 'video' || previewItem.fileType === 'image') && previewItem.sourceType === 'firebase-storage' ? (
                         previewItem.fileType === 'pdf' ? (
                             <iframe 
-                                width="100%" 
-                                height="100%"
-                                src={previewItem.source}
+                                className="w-full h-full"
+                                src={`${previewItem.source}#toolbar=0&navpanes=0&scrollbar=0`}
                                 title={previewItem.name}
+                                sandbox="allow-same-origin"
                             ></iframe>
                         ) : previewItem.fileType === 'video' ? (
-                            <video controls src={previewItem.source} className="max-w-full max-h-full">
+                            <video 
+                                controls 
+                                controlsList="nodownload nofullscreen" 
+                                src={previewItem.source} 
+                                className="max-w-full max-h-full"
+                                onContextMenu={(e) => e.preventDefault()}
+                            >
                                 Your browser does not support the video tag.
                             </video>
                         ) : (
-                            <img src={previewItem.source} alt={previewItem.name} className="max-w-full max-h-full object-contain" />
+                            <img 
+                                src={previewItem.source} 
+                                alt={previewItem.name} 
+                                className="max-w-full max-h-full object-contain select-none" 
+                                onContextMenu={(e) => e.preventDefault()}
+                                draggable={false}
+                            />
                         )
                     ) : (
-                       <p className="text-white">Preview tidak tersedia untuk tipe file ini.</p>
+                       <div className="text-center p-8">
+                           <div className="text-gray-400 mb-2">
+                               <Download className="h-12 w-12 mx-auto opacity-50" />
+                           </div>
+                           <p className="text-sm text-gray-500">Preview tidak tersedia untuk tipe file ini.</p>
+                       </div>
                     )}
                     </div>
                 </DialogContent>
