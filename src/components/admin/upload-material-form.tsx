@@ -60,9 +60,8 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [gapiLoaded, setGapiLoaded] = useState(false);
   const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const localAccessToken = useRef<string | null>(null);
 
   const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
   
@@ -91,8 +90,8 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         const result = await signInWithPopup(auth, provider);
         const credential = GoogleAuthProvider.credentialFromResult(result);
         if (credential?.accessToken) {
-            setAccessToken(credential.accessToken);
-            createPicker(credential.accessToken);
+            localAccessToken.current = credential.accessToken;
+            createPicker();
         } else {
             throw new Error("Could not get access token from Google");
         }
@@ -119,7 +118,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       });
 
       const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
+        headers: { 'Authorization': `Bearer ${localAccessToken.current}` }
       });
 
       if (!res.ok) {
@@ -163,25 +162,28 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     } finally {
       setIsGoogleLoading(false);
     }
-  }, [accessToken, currentFolderId, onMaterialAdd, onClose, toast]);
+  }, [currentFolderId, onMaterialAdd, onClose, toast]);
 
-  const createPicker = useCallback((token: string) => {
-    if (!pickerApiLoaded || !token) {
+  const createPicker = useCallback(() => {
+    if (!pickerApiLoaded || !localAccessToken.current) {
         toast({ variant: 'destructive', title: 'Picker Error', description: 'Google Picker is not ready or authentication failed.' });
         return;
     }
     
     const myDriveView = new window.google.picker.DocsView();
-    const sharedWithMeView = new window.google.picker.DocsView().setOwnedByMe(false);
+    const sharedWithMeView = new window.google.picker.DocsView()
+        .setSelectFolderEnabled(false)
+        .setOwnedByMe(false);
+        
     const recentView = new window.google.picker.DocsView();
-    if(window.google.picker.SortOrder) {
+    if(window.google?.picker?.SortOrder) {
         recentView.setSort(window.google.picker.SortOrder.LAST_OPENED_BY_ME);
     }
 
 
     const picker = new window.google.picker.PickerBuilder()
         .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
-        .setOAuthToken(token)
+        .setOAuthToken(localAccessToken.current)
         .setDeveloperKey(API_KEY)
         .addView(myDriveView)
         .addView(sharedWithMeView)
@@ -372,3 +374,5 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     </div>
   )
 }
+
+    
