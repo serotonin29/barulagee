@@ -72,8 +72,9 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       document.body.removeChild(gapiScript);
     };
   }, []);
-
+  
   const pickerCallback = useCallback((data: any) => {
+    setIsGoogleLoading(false);
     if (data.action === window.gapi.picker.Action.PICKED) {
       const files = data.docs;
       files.forEach((file: any) => {
@@ -97,11 +98,10 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       })
       onClose();
     }
-    setIsGoogleLoading(false);
   }, [currentFolderId, onMaterialAdd, onClose, toast]);
-  
+
   const createPicker = useCallback(() => {
-    if (!pickerApiLoaded || !oauthToken.current || !window.gapi?.picker) {
+    if (!gapiLoaded || !pickerApiLoaded || !oauthToken.current || !window.gapi?.picker) {
         toast({
             variant: 'destructive',
             title: 'Picker Error',
@@ -136,21 +136,10 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         .setCallback(pickerCallback)
         .build();
     picker.setVisible(true);
-  }, [API_KEY, toast, pickerCallback, pickerApiLoaded]);
+  }, [API_KEY, toast, pickerCallback, gapiLoaded, pickerApiLoaded]);
   
-  const handleAuthClick = useCallback(() => {
-    setIsGoogleLoading(true);
-    if (!gisLoaded || !gapiLoaded) {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Layanan Google belum siap. Mohon tunggu sebentar dan coba lagi.',
-        });
-        setIsGoogleLoading(false);
-        return;
-    }
-
-    if (!tokenClient.current) {
+  useEffect(() => {
+    if (gisLoaded && !tokenClient.current) {
         tokenClient.current = window.google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID,
             scope: SCOPES,
@@ -165,11 +154,31 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
             },
         });
     }
+  }, [gisLoaded, createPicker, toast, CLIENT_ID, SCOPES]);
+  
+  const handleAuthClick = useCallback(() => {
+    setIsGoogleLoading(true);
+    if (!gisLoaded || !gapiLoaded) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Layanan Google belum siap. Mohon tunggu sebentar dan coba lagi.',
+        });
+        setIsGoogleLoading(false);
+        return;
+    }
 
-    // Always request a token to ensure it's fresh,
-    // Google's library handles caching and will only show the popup if necessary.
-    tokenClient.current.requestAccessToken({ prompt: '' });
-  }, [gisLoaded, gapiLoaded, toast, createPicker, CLIENT_ID, SCOPES]);
+    if (tokenClient.current) {
+        tokenClient.current.requestAccessToken({ prompt: '' });
+    } else {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Klien otentikasi Google belum siap.',
+        });
+        setIsGoogleLoading(false);
+    }
+  }, [gisLoaded, gapiLoaded, toast]);
   
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
     setUploadMethod(method);
