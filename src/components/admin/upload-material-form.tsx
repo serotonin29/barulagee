@@ -39,43 +39,65 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [gapiLoaded, setGapiLoaded] = useState(false);
-  const [gisLoaded, setGisLoaded] = useState(false);
-  const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
-  const oauthToken = useRef<google.accounts.oauth2.TokenResponse | null>(null);
+  const [isGapiReady, setIsGapiReady] = useState(false);
+  const [oauthToken, setOauthToken] = useState<google.accounts.oauth2.TokenResponse | null>(null);
   const tokenClient = useRef<google.accounts.oauth2.TokenClient | null>(null);
 
   const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
   const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
   const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
-
+  
+  const handleGapiLoad = useCallback(() => {
+    window.gapi.load('client:picker', () => {
+      window.gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest')
+        .then(() => {
+          setIsGapiReady(true);
+        }, (err) => {
+          console.error("Error loading GAPI client for API", err);
+          toast({ variant: 'destructive', title: 'Error', description: 'Gagal memuat GAPI client.' });
+        });
+    });
+  }, [toast]);
+  
+  const handleGisLoad = useCallback(() => {
+    tokenClient.current = window.google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: (tokenResponse) => {
+        if (tokenResponse.error) {
+          toast({ variant: 'destructive', title: 'Otentikasi Gagal', description: tokenResponse.error_description });
+          setIsGoogleLoading(false);
+        } else {
+          setOauthToken(tokenResponse);
+        }
+      },
+    });
+  }, [CLIENT_ID, SCOPES, toast]);
+  
   useEffect(() => {
-    const gisScript = document.createElement('script');
-    gisScript.src = 'https://accounts.google.com/gsi/client';
-    gisScript.async = true;
-    gisScript.defer = true;
-    gisScript.onload = () => setGisLoaded(true);
-    document.body.appendChild(gisScript);
-
     const gapiScript = document.createElement('script');
     gapiScript.src = 'https://apis.google.com/js/api.js';
     gapiScript.async = true;
     gapiScript.defer = true;
-    gapiScript.onload = () => window.gapi.load('picker', () => {
-        setGapiLoaded(true);
-        setPickerApiLoaded(true);
-    });
+    gapiScript.onload = handleGapiLoad;
     document.body.appendChild(gapiScript);
 
+    const gisScript = document.createElement('script');
+    gisScript.src = 'https://accounts.google.com/gsi/client';
+    gisScript.async = true;
+    gisScript.defer = true;
+    gisScript.onload = handleGisLoad;
+    document.body.appendChild(gisScript);
+
     return () => {
-      document.body.removeChild(gisScript);
       document.body.removeChild(gapiScript);
+      document.body.removeChild(gisScript);
     };
-  }, []);
-  
+  }, [handleGapiLoad, handleGisLoad]);
+
   const pickerCallback = useCallback((data: any) => {
     setIsGoogleLoading(false);
-    if (data.action === window.gapi.picker.Action.PICKED) {
+    if (data.action === window.google.picker.Action.PICKED) {
       const files = data.docs;
       files.forEach((file: any) => {
         const newMaterial: DriveItem = {
@@ -97,38 +119,41 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         description: `${files.length} file telah ditambahkan dari Google Drive.`,
       })
       onClose();
+    } else if (data.action === window.google.picker.Action.CANCEL) {
+      setIsGoogleLoading(false);
     }
   }, [currentFolderId, onMaterialAdd, onClose, toast]);
 
-  const createPicker = useCallback(() => {
-    if (!gapiLoaded || !pickerApiLoaded || !oauthToken.current || !window.gapi?.picker) {
-        toast({
-            variant: 'destructive',
-            title: 'Picker Error',
-            description: 'Google Picker tidak siap. Coba lagi.',
-        });
-        setIsGoogleLoading(false);
-        return;
-    }
 
-    const myDriveView = new window.gapi.picker.DocsView()
+  const createPicker = useCallback(() => {
+    if (!isGapiReady || !oauthToken) {
+      toast({
+          variant: 'destructive',
+          title: 'Picker Error',
+          description: 'Google Picker tidak siap. Coba lagi.',
+      });
+      setIsGoogleLoading(false);
+      return;
+    }
+    
+    const myDriveView = new window.google.picker.DocsView()
         .setIncludeFolders(false)
         .setSelectFolderEnabled(false);
 
-    const sharedWithMeView = new window.gapi.picker.DocsView()
+    const sharedWithMeView = new window.google.picker.DocsView()
         .setIncludeFolders(false)
         .setSelectFolderEnabled(false)
         .setOwnedByMe(false)
-        .setSort(new window.gapi.picker.DocsViewSort('sharedDate', false));
+        .setSort(new window.google.picker.DocsViewSort.SHARED_DATE_DESC);
         
-    const recentView = new window.gapi.picker.DocsView()
+    const recentView = new window.google.picker.DocsView()
         .setIncludeFolders(false)
         .setSelectFolderEnabled(false)
-        .setSort(new window.gapi.picker.DocsViewSort('lastOpened', false));
+        .setSort(new window.google.picker.DocsViewSort.LAST_OPENED);
 
-    const picker = new window.gapi.picker.PickerBuilder()
-        .enableFeature(window.gapi.picker.Feature.MULTISELECT_ENABLED)
-        .setOAuthToken(oauthToken.current.access_token)
+    const picker = new window.google.picker.PickerBuilder()
+        .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
+        .setOAuthToken(oauthToken.access_token)
         .addView(myDriveView)
         .addView(sharedWithMeView)
         .addView(recentView)
@@ -136,49 +161,27 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         .setCallback(pickerCallback)
         .build();
     picker.setVisible(true);
-  }, [API_KEY, toast, pickerCallback, gapiLoaded, pickerApiLoaded]);
-  
+  }, [API_KEY, toast, pickerCallback, isGapiReady, oauthToken]);
+
   useEffect(() => {
-    if (gisLoaded && !tokenClient.current) {
-        tokenClient.current = window.google.accounts.oauth2.initTokenClient({
-            client_id: CLIENT_ID,
-            scope: SCOPES,
-            callback: (tokenResponse) => {
-              if (tokenResponse.error) {
-                  toast({ variant: 'destructive', title: 'Otentikasi Gagal', description: tokenResponse.error_description });
-                  setIsGoogleLoading(false);
-              } else {
-                  oauthToken.current = tokenResponse;
-                  createPicker();
-              }
-            },
-        });
+    if (oauthToken) {
+      createPicker();
     }
-  }, [gisLoaded, createPicker, toast, CLIENT_ID, SCOPES]);
+  }, [oauthToken, createPicker]);
   
   const handleAuthClick = useCallback(() => {
     setIsGoogleLoading(true);
-    if (!gisLoaded || !gapiLoaded) {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Layanan Google belum siap. Mohon tunggu sebentar dan coba lagi.',
-        });
-        setIsGoogleLoading(false);
-        return;
-    }
-
     if (tokenClient.current) {
-        tokenClient.current.requestAccessToken({ prompt: '' });
+      tokenClient.current.requestAccessToken();
     } else {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Klien otentikasi Google belum siap.',
-        });
-        setIsGoogleLoading(false);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Klien otentikasi Google belum siap. Mohon tunggu.',
+      });
+      setIsGoogleLoading(false);
     }
-  }, [gisLoaded, gapiLoaded, toast]);
+  }, [toast]);
   
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
     setUploadMethod(method);
