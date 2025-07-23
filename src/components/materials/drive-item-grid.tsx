@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { DriveItem } from "@/types";
@@ -14,8 +15,11 @@ export function DriveItemGrid({ items, onFolderClick, onDeleteClick }: DriveItem
   const onItemClick = (item: DriveItem) => {
     if (item.type === 'folder') {
       onFolderClick(item.id);
+    } else if (item.source && (item.source.startsWith('http://') || item.source.startsWith('https://'))) {
+      // It's an embeddable link, open it in a new tab
+      window.open(item.source, '_blank', 'noopener,noreferrer');
     } else {
-      // In a real app, this would open the file viewer
+      // For other file types (e.g., from GDrive picker without a direct URL), show an alert
       alert(`Opening file: ${item.name}`);
     }
   };
