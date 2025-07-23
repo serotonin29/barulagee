@@ -79,14 +79,14 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   }, [gapiLoaded]);
 
   useEffect(() => {
-    if (gisLoaded) {
+    if (gisLoaded && !tokenClient.current) {
       tokenClient.current = window.google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: SCOPES,
         callback: (tokenResponse) => {
+          setIsGoogleLoading(false);
           if (tokenResponse.error) {
             toast({ variant: 'destructive', title: 'Otentikasi Gagal', description: tokenResponse.error_description });
-            setIsGoogleLoading(false);
           } else {
             setOauthToken(tokenResponse);
           }
@@ -94,9 +94,8 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       });
     }
   }, [gisLoaded, CLIENT_ID, SCOPES, toast]);
-  
+
   const pickerCallback = useCallback((data: any) => {
-    setIsGoogleLoading(false);
     if (data.action === window.google.picker.Action.PICKED) {
       const files = data.docs;
       files.forEach((file: any) => {
@@ -120,10 +119,10 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       })
       onClose();
     } else if (data.action === window.google.picker.Action.CANCEL) {
-      setIsGoogleLoading(false);
+      // User cancelled, do nothing.
     }
   }, [currentFolderId, onMaterialAdd, onClose, toast]);
-
+  
   const createPicker = useCallback(() => {
     if (!pickerApiLoaded || !oauthToken) {
       toast({
@@ -142,8 +141,8 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     const sharedWithMeView = new window.google.picker.DocsView()
         .setIncludeFolders(false)
         .setSelectFolderEnabled(false)
-        .setOwnedByMe(false);
-        
+        .setOwnedByMe(false)
+
     const recentView = new window.google.picker.DocsView()
         .setIncludeFolders(false)
         .setSelectFolderEnabled(false)
@@ -162,10 +161,10 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   }, [API_KEY, toast, pickerCallback, pickerApiLoaded, oauthToken]);
 
   useEffect(() => {
-    if (oauthToken) {
+    if (oauthToken && pickerApiLoaded) {
       createPicker();
     }
-  }, [oauthToken, createPicker]);
+  }, [oauthToken, pickerApiLoaded, createPicker]);
   
   const handleAuthClick = useCallback(() => {
     setIsGoogleLoading(true);
