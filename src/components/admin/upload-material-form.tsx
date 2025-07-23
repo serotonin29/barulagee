@@ -57,7 +57,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     document.body.appendChild(gisScript);
 
     const gapiScript = document.createElement('script');
-gapiScript.src = 'https://apis.google.com/js/api.js';
+    gapiScript.src = 'https://apis.google.com/js/api.js';
     gapiScript.async = true;
     gapiScript.defer = true;
     gapiScript.onload = () => window.gapi.load('picker', () => {
