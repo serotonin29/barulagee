@@ -23,7 +23,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { auth, db } from '@/lib/firebase';
@@ -83,11 +82,11 @@ export default function LoginPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       await checkUserProfileAndRedirect(userCredential.user);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "Login Failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
       });
     } finally {
       setIsLoading(false);
@@ -100,11 +99,11 @@ export default function LoginPage() {
     try {
       const result = await signInWithPopup(auth, provider);
       await checkUserProfileAndRedirect(result.user);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "Google Login Failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
       });
     } finally {
       setIsGoogleLoading(false);

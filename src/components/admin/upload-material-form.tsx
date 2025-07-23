@@ -21,10 +21,41 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { auth, storage } from "@/lib/firebase";
-import { GoogleAuthProvider, signInWithPopup, User } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 
 // Declare global types for Google APIs
+interface GooglePickerFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  thumbnails?: Array<{ url: string }>;
+}
+
+interface GooglePickerData {
+  action: string;
+  docs: GooglePickerFile[];
+}
+
+interface GooglePickerView {
+  setMimeTypes(mimeTypes: string): GooglePickerView;
+  setQuery(query: string): GooglePickerView;
+  setParent(parent: string): GooglePickerView;
+  setSelectFolderEnabled(enabled: boolean): GooglePickerView;
+  setSort?(sortOrder: string): GooglePickerView;
+}
+
+interface GooglePickerBuilder {
+  addView(view: GooglePickerView): GooglePickerBuilder;
+  setOAuthToken(token: string): GooglePickerBuilder;
+  setDeveloperKey(key: string): GooglePickerBuilder;
+  setCallback(callback: (data: GooglePickerData) => void): GooglePickerBuilder;
+  setOrigin(origin: string): GooglePickerBuilder;
+  setSize(width: number, height: number): GooglePickerBuilder;
+  setAppId?(appId: string): GooglePickerBuilder;
+  build(): { setVisible(visible: boolean): void };
+}
+
 declare global {
   interface Window {
     gapi: {
@@ -35,13 +66,14 @@ declare global {
         Action: {
           PICKED: string;
         };
-        DocsView: new () => any;
+        DocsView: new () => GooglePickerView;
         SortOrder: {
           LAST_OPENED_BY_ME: string;
         };
-        PickerBuilder: new () => any;
+        PickerBuilder: new () => GooglePickerBuilder;
       };
     };
+    onPickerApiLoad?: () => void;
   }
 }
 
@@ -103,7 +135,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   }, []);
   
   useEffect(() => {
-    (window as any).onPickerApiLoad = onPickerApiLoad;
+    window.onPickerApiLoad = onPickerApiLoad;
 
     const gapiScript = document.createElement('script');
     gapiScript.src = 'https://apis.google.com/js/api.js';
@@ -112,7 +144,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     gapiScript.onload = () => {
         console.log('GAPI script loaded, loading picker...');
         if (window.gapi) {
-          window.gapi.load('picker', { 'callback': (window as any).onPickerApiLoad });
+          window.gapi.load('picker', { 'callback': window.onPickerApiLoad! });
         } else {
           console.error('GAPI not available after script load');
         }
@@ -130,10 +162,10 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     return () => {
       try {
         document.body.removeChild(gapiScript);
-      } catch (e) {
+      } catch {
         // Script might already be removed
       }
-      delete (window as any).onPickerApiLoad;
+      delete window.onPickerApiLoad;
     };
   }, [onPickerApiLoad, toast]);
 
@@ -162,18 +194,18 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         } else {
             throw new Error("Could not get access token from Google");
         }
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Google authentication error:', error);
         toast({
             variant: "destructive",
             title: "Google Authentication Failed",
-            description: error.message,
+            description: error instanceof Error ? error.message : 'An unexpected error occurred',
         });
         setIsGoogleLoading(false);
     }
   };
 
-  const handleFilePicked = useCallback(async (data: any, token: string) => {
+  const handleFilePicked = useCallback(async (data: GooglePickerData, token: string) => {
     console.log('File picker callback triggered:', data);
     setIsGoogleLoading(true);
     try {
@@ -240,12 +272,12 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       });
       onClose();
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error processing file:', error);
       toast({ 
         variant: 'destructive', 
-        title: 'Error Processing File', 
-        description: `${error.message || 'Unknown error occurred'}`
+        title: 'Upload Failed',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
       });
     } finally {
       setIsGoogleLoading(false);
@@ -275,30 +307,33 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       const myDriveView = new window.google.picker.DocsView();
       
       const recentView = new window.google.picker.DocsView();
-      if(window.google?.picker?.SortOrder?.LAST_OPENED_BY_ME) {
+      if(window.google?.picker?.SortOrder?.LAST_OPENED_BY_ME && recentView.setSort) {
           recentView.setSort(window.google.picker.SortOrder.LAST_OPENED_BY_ME);
       }
 
       console.log('Building picker with configuration:', { API_KEY: !!API_KEY, APP_ID: !!APP_ID });
-      const picker = new window.google.picker.PickerBuilder()
-          .setAppId(APP_ID)
+      const pickerBuilder = new window.google.picker.PickerBuilder();
+      if (pickerBuilder.setAppId) {
+        pickerBuilder.setAppId(APP_ID);
+      }
+      const picker = pickerBuilder
           .setOAuthToken(token)
           .setDeveloperKey(API_KEY)
           .setOrigin(window.location.origin)
           .addView(myDriveView)
           .addView(recentView)
-          .setCallback((data: any) => handleFilePicked(data, token))
+          .setCallback((data: GooglePickerData) => handleFilePicked(data, token))
           .build();
       
       console.log('Picker created successfully, showing...');
       picker.setVisible(true);
       setIsGoogleLoading(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating picker:', error);
       toast({ 
         variant: 'destructive', 
-        title: "Picker Creation Failed", 
-        description: error.message 
+        title: 'Picker Creation Failed',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
       });
       setIsGoogleLoading(false);
     }
@@ -345,7 +380,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true)
     
-    let submissionData: Partial<DriveItem> = { 
+    const submissionData: Partial<DriveItem> = { 
         id: `file-${Date.now()}`,
         name: 'Untitled Material',
         type: 'file',
@@ -356,7 +391,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         const url = values.fileUrl;
         try {
             submissionData.name = new URL(url).hostname;
-        } catch (e) {
+        } catch {
             submissionData.name = "Embedded Link"
         }
 
@@ -394,9 +429,9 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
             submissionData.source = downloadURL;
             submissionData.sourceType = 'firebase-storage';
             submissionData.coverImage = file.type.startsWith('image/') ? downloadURL : `https://placehold.co/600x400`;
-          } catch(e: any) {
+          } catch(e: unknown) {
               console.error("Local upload error", e);
-              toast({ variant: 'destructive', title: 'Upload Failed', description: e.message });
+              toast({ variant: 'destructive', title: 'Upload Failed', description: e instanceof Error ? e.message : 'An unexpected error occurred' });
               setIsSubmitting(false);
               return;
           }

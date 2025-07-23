@@ -163,7 +163,7 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
         if (!itemToDelete) return;
 
         const isFolder = itemToDelete.type === 'folder';
-        let itemsToRemove = new Set<string>([itemToDelete.id]);
+        const itemsToRemove = new Set<string>([itemToDelete.id]);
         
         if (isFolder) {
             const findChildrenRecursive = (folderId: string) => {
@@ -291,7 +291,7 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
                         <AlertDialogTitle>Anda yakin ingin menghapus?</AlertDialogTitle>
                         <AlertDialogDescription>
                             Tindakan ini tidak dapat dibatalkan. Ini akan menghapus secara permanen 
-                             {itemToDelete?.type === 'folder' ? ' folder' : ' file'} <span className="font-bold">"{itemToDelete?.name}"</span>
+                                                          {itemToDelete?.type === 'folder' ? ' folder' : ' file'} <span className="font-bold">&ldquo;{itemToDelete?.name}&rdquo;</span>
                              {itemToDelete?.type === 'folder' && ' dan semua isinya'}.
                         </AlertDialogDescription>
                     </AlertDialogHeader>

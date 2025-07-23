@@ -16,7 +16,7 @@ export default function AuthLayout({
              <div className="space-y-4">
                 <Quote className="h-12 w-12" />
                 <p className="text-xl italic">
-                    "Ilmu kedokteran adalah seni menyentuh hati sekaligus menyembuhkan tubuh. Belajar hari ini, agar bisa menyelamatkan nyawa esok hari."
+                    &ldquo;Ilmu kedokteran adalah seni menyentuh hati sekaligus menyembuhkan tubuh. Belajar hari ini, agar bisa menyelamatkan nyawa esok hari.&rdquo;
                 </p>
                 <footer className="text-sm font-medium">— Tim NeuroZsis</footer>
             </div>

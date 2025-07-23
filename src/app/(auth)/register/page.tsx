@@ -107,11 +107,11 @@ export default function RegisterPage() {
         });
         router.push('/continue-registration');
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         toast({
             variant: "destructive",
             title: "Registration Failed",
-            description: error.message,
+            description: error instanceof Error ? error.message : 'An unexpected error occurred',
         });
     } finally {
         setIsLoading(false);
@@ -124,11 +124,11 @@ export default function RegisterPage() {
     try {
         const result = await signInWithPopup(auth, provider);
         await checkUserProfileAndRedirect(result.user);
-    } catch (error: any) {
+    } catch (error: unknown) {
         toast({
             variant: "destructive",
             title: "Google Sign-Up Failed",
-            description: error.message,
+            description: error instanceof Error ? error.message : 'An unexpected error occurred',
         });
     } finally {
         setIsGoogleLoading(false);
