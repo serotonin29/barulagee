@@ -124,7 +124,6 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     }
   }, [currentFolderId, onMaterialAdd, onClose, toast]);
 
-
   const createPicker = useCallback(() => {
     if (!isGapiReady || !oauthToken) {
       toast({
@@ -144,12 +143,12 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         .setIncludeFolders(false)
         .setSelectFolderEnabled(false)
         .setOwnedByMe(false)
-        .setSort(window.google.picker.SortOrder.LAST_MODIFIED_BY_ME);
+        .setSort(window.google.picker.SortOrder.LAST_MODIFIED);
         
     const recentView = new window.google.picker.DocsView()
         .setIncludeFolders(false)
         .setSelectFolderEnabled(false)
-        .setSort(window.google.picker.SortOrder.LAST_OPENED);
+        .setSort(window.google.picker.SortOrder.LAST_OPENED_BY_ME);
 
     const picker = new window.google.picker.PickerBuilder()
         .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
