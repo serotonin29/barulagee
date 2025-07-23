@@ -68,10 +68,11 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const APP_ID = process.env.NEXT_PUBLIC_GOOGLE_APP_ID || '';
   
   useEffect(() => {
-    // Attach the callback function to the window object
-    (window as any).onPickerApiLoad = () => {
+    const onPickerApiLoad = () => {
       setPickerApiLoaded(true);
     };
+
+    (window as any).onPickerApiLoad = onPickerApiLoad;
 
     const gapiScript = document.createElement('script');
     gapiScript.src = 'https://apis.google.com/js/api.js';
@@ -90,12 +91,6 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
 
   const handleDriveAuth = async () => {
     setIsGoogleLoading(true);
-    if (!pickerApiLoaded) {
-      toast({ variant: 'destructive', title: "Google Picker not ready", description: "Please wait a moment and try again." });
-      setIsGoogleLoading(false);
-      return;
-    }
-
     const provider = new GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/drive.readonly');
     try {
@@ -103,7 +98,6 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         const credential = GoogleAuthProvider.credentialFromResult(result);
         if (credential?.accessToken) {
             setOauthToken(credential.accessToken);
-            createPicker(credential.accessToken);
         } else {
             throw new Error("Could not get access token from Google");
         }
@@ -113,7 +107,6 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
             title: "Google Authentication Failed",
             description: error.message,
         });
-    } finally {
         setIsGoogleLoading(false);
     }
   };
@@ -185,6 +178,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const createPicker = useCallback((token: string) => {
     if (!pickerApiLoaded || !token || !window.google?.picker) {
       toast({ variant: 'destructive', title: "Picker Error", description: "Dependencies not ready." });
+      setIsGoogleLoading(false);
       return;
     }
     
@@ -205,7 +199,13 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         .build();
     picker.setVisible(true);
     setIsGoogleLoading(false);
-  }, [API_KEY, APP_ID, pickerApiLoaded, handleFilePicked]);
+  }, [API_KEY, APP_ID, pickerApiLoaded, handleFilePicked, toast]);
+  
+  useEffect(() => {
+    if (oauthToken && pickerApiLoaded) {
+      createPicker(oauthToken);
+    }
+  }, [oauthToken, pickerApiLoaded, createPicker]);
 
 
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
