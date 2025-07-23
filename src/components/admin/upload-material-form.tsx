@@ -21,11 +21,11 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { auth, storage } from "@/lib/firebase";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, User } from "firebase/auth";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 
 
-const GoogleIconSvg = (props: React.SVGProps<SVGSVGElement>) => (
+const GoogleIconSvg = (props: React.SVGProps<SVGGSVGElement>) => (
     <svg {...props} className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
         <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 126 23.4 172.9 61.9l-69.2 67.4c-20.5-19.3-48.8-31.2-81.6-31.2-74.2 0-134.4 60.2-134.4 134.4s60.2 134.4 134.4 134.4c83.3 0 119.2-61.2 123.5-92.4H248v-83.3h239.9c1.6 10.1 2.5 20.9 2.5 32.2z"></path>
     </svg>
@@ -34,6 +34,7 @@ const GoogleIconSvg = (props: React.SVGProps<SVGSVGElement>) => (
 const formSchema = z.object({
   fileUrl: z.string().optional(),
 }).refine((data) => {
+    // This is a workaround to get the current upload method
     const uploadMethodElement = document.querySelector('[data-upload-method]');
     if (uploadMethodElement && uploadMethodElement.getAttribute('data-upload-method') === 'embed') {
         return z.string().url({ message: "Please enter a valid URL." }).safeParse(data.fileUrl).success;
@@ -64,26 +65,37 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const [oauthToken, setOauthToken] = useState<string | null>(null);
 
   const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
+  const APP_ID = process.env.NEXT_PUBLIC_GOOGLE_APP_ID || '';
   
   useEffect(() => {
+    // Attach the callback function to the window object
+    (window as any).onPickerApiLoad = () => {
+      setPickerApiLoaded(true);
+    };
+
     const gapiScript = document.createElement('script');
     gapiScript.src = 'https://apis.google.com/js/api.js';
     gapiScript.async = true;
     gapiScript.defer = true;
     gapiScript.onload = () => {
-        window.gapi.load('picker', () => {
-            setPickerApiLoaded(true);
-        });
+        window.gapi.load('picker', { 'callback': (window as any).onPickerApiLoad });
     };
     document.body.appendChild(gapiScript);
     
     return () => {
       document.body.removeChild(gapiScript);
+      delete (window as any).onPickerApiLoad;
     };
   }, []);
 
   const handleDriveAuth = async () => {
     setIsGoogleLoading(true);
+    if (!pickerApiLoaded) {
+      toast({ variant: 'destructive', title: "Google Picker not ready", description: "Please wait a moment and try again." });
+      setIsGoogleLoading(false);
+      return;
+    }
+
     const provider = new GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/drive.readonly');
     try {
@@ -91,6 +103,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         const credential = GoogleAuthProvider.credentialFromResult(result);
         if (credential?.accessToken) {
             setOauthToken(credential.accessToken);
+            createPicker(credential.accessToken);
         } else {
             throw new Error("Could not get access token from Google");
         }
@@ -100,11 +113,12 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
             title: "Google Authentication Failed",
             description: error.message,
         });
+    } finally {
         setIsGoogleLoading(false);
     }
   };
 
-  const handleFilePicked = useCallback(async (data: any) => {
+  const handleFilePicked = useCallback(async (data: any, token: string) => {
     setIsGoogleLoading(true);
     try {
       if (data.action !== google.picker.Action.PICKED) {
@@ -121,7 +135,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       });
 
       const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-        headers: { 'Authorization': `Bearer ${oauthToken}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (!res.ok) {
@@ -166,43 +180,32 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     } finally {
       setIsGoogleLoading(false);
     }
-  }, [currentFolderId, onMaterialAdd, onClose, toast, oauthToken]);
+  }, [currentFolderId, onMaterialAdd, onClose, toast]);
 
-  const createPicker = useCallback(() => {
-    if (!pickerApiLoaded || !oauthToken || !window.google?.picker) {
-        // This condition will be hit if the user clicks the button before everything is ready.
-        // handleDriveAuth will be called, and this function will re-trigger via useEffect.
-        return;
+  const createPicker = useCallback((token: string) => {
+    if (!pickerApiLoaded || !token || !window.google?.picker) {
+      toast({ variant: 'destructive', title: "Picker Error", description: "Dependencies not ready." });
+      return;
     }
     
     const myDriveView = new window.google.picker.DocsView();
-    const sharedWithMeView = new window.google.picker.DocsView()
-        .setSelectFolderEnabled(false)
-        .setOwnedByMe(false);
-        
+    
     const recentView = new window.google.picker.DocsView();
     if(window.google?.picker?.SortOrder?.LAST_OPENED_BY_ME) {
         recentView.setSort(window.google.picker.SortOrder.LAST_OPENED_BY_ME);
     }
 
     const picker = new window.google.picker.PickerBuilder()
-        .setAppId(process.env.NEXT_PUBLIC_GOOGLE_APP_ID || '')
-        .setOAuthToken(oauthToken)
+        .setAppId(APP_ID)
+        .setOAuthToken(token)
         .setDeveloperKey(API_KEY)
         .addView(myDriveView)
-        .addView(sharedWithMeView)
         .addView(recentView)
-        .setCallback(handleFilePicked)
+        .setCallback((data: any) => handleFilePicked(data, token))
         .build();
     picker.setVisible(true);
-    setIsGoogleLoading(false); // Picker is now visible, loading is done
-  }, [API_KEY, pickerApiLoaded, handleFilePicked, oauthToken]);
-
-  useEffect(() => {
-    if (oauthToken && pickerApiLoaded) {
-      createPicker();
-    }
-  }, [oauthToken, pickerApiLoaded, createPicker]);
+    setIsGoogleLoading(false);
+  }, [API_KEY, APP_ID, pickerApiLoaded, handleFilePicked]);
 
 
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
@@ -264,6 +267,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
             submissionData.name = "YouTube Video";
         } else {
             submissionData.fileType = 'video'; // Assuming embed links are mostly videos
+            submissionData.sourceType = 'external';
             submissionData.source = url;
             submissionData.coverImage = `https://placehold.co/600x400`;
         }
@@ -286,7 +290,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
                                       file.type.startsWith('video/') ? 'video' : 'text';
             submissionData.source = downloadURL;
             submissionData.sourceType = 'firebase-storage';
-            submissionData.coverImage = `https://placehold.co/600x400`;
+            submissionData.coverImage = file.type.startsWith('image/') ? downloadURL : `https://placehold.co/600x400`;
           } catch(e: any) {
               console.error("Local upload error", e);
               toast({ variant: 'destructive', title: 'Upload Failed', description: e.message });
@@ -388,3 +392,5 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     </div>
   )
 }
+
+    
