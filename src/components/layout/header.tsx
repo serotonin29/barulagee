@@ -44,7 +44,11 @@ const navItems = [
     { href: '/forum', icon: Users, label: 'Forum' },
 ];
 
-const adminNavItems = [];
+const adminNavItems: Array<{
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}> = [];
 
 export function Header({ pageTitle }: { pageTitle: string }) {
   const pathname = usePathname();

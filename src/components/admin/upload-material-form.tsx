@@ -24,8 +24,29 @@ import { auth, storage } from "@/lib/firebase";
 import { GoogleAuthProvider, signInWithPopup, User } from "firebase/auth";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 
+// Declare global types for Google APIs
+declare global {
+  interface Window {
+    gapi: {
+      load: (api: string, callback: { callback: () => void }) => void;
+    };
+    google: {
+      picker: {
+        Action: {
+          PICKED: string;
+        };
+        DocsView: new () => any;
+        SortOrder: {
+          LAST_OPENED_BY_ME: string;
+        };
+        PickerBuilder: new () => any;
+      };
+    };
+  }
+}
 
-const GoogleIconSvg = (props: React.SVGProps<SVGGSVGElement>) => (
+
+const GoogleIconSvg = (props: React.SVGProps<SVGSVGElement>) => (
     <svg {...props} className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
         <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 126 23.4 172.9 61.9l-69.2 67.4c-20.5-19.3-48.8-31.2-81.6-31.2-74.2 0-134.4 60.2-134.4 134.4s60.2 134.4 134.4 134.4c83.3 0 119.2-61.2 123.5-92.4H248v-83.3h239.9c1.6 10.1 2.5 20.9 2.5 32.2z"></path>
     </svg>
@@ -67,6 +88,16 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
   const APP_ID = process.env.NEXT_PUBLIC_GOOGLE_APP_ID || '';
   
+  // Log configuration for debugging
+  useEffect(() => {
+    console.log('Google Drive Upload Configuration:', {
+      hasApiKey: !!API_KEY,
+      hasAppId: !!APP_ID,
+      apiKeyLength: API_KEY.length,
+      appIdLength: APP_ID.length
+    });
+  }, [API_KEY, APP_ID]);
+  
   const onPickerApiLoad = useCallback(() => {
     setPickerApiLoaded(true);
   }, []);
@@ -79,29 +110,60 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     gapiScript.async = true;
     gapiScript.defer = true;
     gapiScript.onload = () => {
-        window.gapi.load('picker', { 'callback': (window as any).onPickerApiLoad });
+        console.log('GAPI script loaded, loading picker...');
+        if (window.gapi) {
+          window.gapi.load('picker', { 'callback': (window as any).onPickerApiLoad });
+        } else {
+          console.error('GAPI not available after script load');
+        }
+    };
+    gapiScript.onerror = (error) => {
+        console.error('Failed to load GAPI script:', error);
+        toast({
+          variant: "destructive",
+          title: "Google API Load Error",
+          description: "Failed to load Google APIs. Please check your internet connection.",
+        });
     };
     document.body.appendChild(gapiScript);
     
     return () => {
-      document.body.removeChild(gapiScript);
+      try {
+        document.body.removeChild(gapiScript);
+      } catch (e) {
+        // Script might already be removed
+      }
       delete (window as any).onPickerApiLoad;
     };
-  }, [onPickerApiLoad]);
+  }, [onPickerApiLoad, toast]);
 
   const handleDriveAuth = async () => {
+    console.log('Starting Google Drive authentication...');
+    
+    if (!API_KEY || !APP_ID) {
+      toast({
+        variant: "destructive",
+        title: "Configuration Error",
+        description: "Google API credentials are not configured. Please check environment variables.",
+      });
+      return;
+    }
+    
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/drive.readonly');
     try {
+        console.log('Attempting sign-in with popup...');
         const result = await signInWithPopup(auth, provider);
         const credential = GoogleAuthProvider.credentialFromResult(result);
         if (credential?.accessToken) {
+            console.log('Successfully obtained access token');
             setOauthToken(credential.accessToken);
         } else {
             throw new Error("Could not get access token from Google");
         }
     } catch (error: any) {
+        console.error('Google authentication error:', error);
         toast({
             variant: "destructive",
             title: "Google Authentication Failed",
@@ -112,39 +174,49 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   };
 
   const handleFilePicked = useCallback(async (data: any, token: string) => {
+    console.log('File picker callback triggered:', data);
     setIsGoogleLoading(true);
     try {
-      if (data.action !== google.picker.Action.PICKED) {
+      if (data.action !== window.google.picker.Action.PICKED) {
+        console.log('User cancelled file picker');
         setIsGoogleLoading(false);
         return;
       }
       
       const file = data.docs[0];
       const fileId = file.id;
+      console.log('Selected file:', { id: fileId, name: file.name, mimeType: file.mimeType });
 
       toast({
         title: "Processing File...",
         description: `Downloading "${file.name}" from Google Drive.`,
       });
 
+      console.log('Downloading file from Google Drive...');
       const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (!res.ok) {
-        throw new Error('Failed to download file from Google Drive');
+        const errorText = await res.text();
+        console.error('Failed to download from Google Drive:', { status: res.status, statusText: res.statusText, errorText });
+        throw new Error(`Failed to download file from Google Drive: ${res.status} ${res.statusText}`);
       }
 
       const fileBlob = await res.blob();
+      console.log('File downloaded successfully:', { size: fileBlob.size, type: fileBlob.type });
       
       toast({
         title: "Uploading to Storage...",
         description: `File downloaded. Now uploading to application storage.`,
       });
 
-      const fileRef = storageRef(storage, `materials/${Date.now()}-${file.name}`);
+      console.log('Uploading to Firebase Storage...');
+      const fileName = `materials/${Date.now()}-${file.name}`;
+      const fileRef = storageRef(storage, fileName);
       const snapshot = await uploadBytes(fileRef, fileBlob);
       const downloadURL = await getDownloadURL(snapshot.ref);
+      console.log('File uploaded to Firebase Storage:', { fileName, downloadURL });
 
       const newMaterial: DriveItem = {
         id: file.id,
@@ -160,6 +232,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         coverImage: file.thumbnails?.[0]?.url || `https://placehold.co/600x400`,
       };
       
+      console.log('Material object created:', newMaterial);
       onMaterialAdd(newMaterial);
       toast({
         title: "Material Added Successfully",
@@ -168,38 +241,67 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       onClose();
 
     } catch (error: any) {
-      console.error(error);
-      toast({ variant: 'destructive', title: 'Error Processing File', description: error.message });
+      console.error('Error processing file:', error);
+      toast({ 
+        variant: 'destructive', 
+        title: 'Error Processing File', 
+        description: `${error.message || 'Unknown error occurred'}`
+      });
     } finally {
       setIsGoogleLoading(false);
     }
   }, [currentFolderId, onMaterialAdd, onClose, toast]);
 
   const createPicker = useCallback((token: string) => {
+    console.log('Creating Google Picker...', { pickerApiLoaded, hasToken: !!token, hasGooglePicker: !!window.google?.picker });
+    
     if (!pickerApiLoaded || !token || !window.google?.picker) {
-      toast({ variant: 'destructive', title: "Picker Error", description: "Dependencies not ready." });
+      const missingItems = [];
+      if (!pickerApiLoaded) missingItems.push('Picker API not loaded');
+      if (!token) missingItems.push('No OAuth token');
+      if (!window.google?.picker) missingItems.push('Google Picker not available');
+      
+      console.error('Picker dependencies not ready:', missingItems);
+      toast({ 
+        variant: 'destructive', 
+        title: "Picker Error", 
+        description: `Dependencies not ready: ${missingItems.join(', ')}` 
+      });
       setIsGoogleLoading(false);
       return;
     }
     
-    const myDriveView = new window.google.picker.DocsView();
-    
-    const recentView = new window.google.picker.DocsView();
-    if(window.google?.picker?.SortOrder?.LAST_OPENED_BY_ME) {
-        recentView.setSort(window.google.picker.SortOrder.LAST_OPENED_BY_ME);
-    }
+    try {
+      const myDriveView = new window.google.picker.DocsView();
+      
+      const recentView = new window.google.picker.DocsView();
+      if(window.google?.picker?.SortOrder?.LAST_OPENED_BY_ME) {
+          recentView.setSort(window.google.picker.SortOrder.LAST_OPENED_BY_ME);
+      }
 
-    const picker = new window.google.picker.PickerBuilder()
-        .setAppId(APP_ID)
-        .setOAuthToken(token)
-        .setDeveloperKey(API_KEY)
-        .setOrigin(window.location.origin)
-        .addView(myDriveView)
-        .addView(recentView)
-        .setCallback((data: any) => handleFilePicked(data, token))
-        .build();
-    picker.setVisible(true);
-    setIsGoogleLoading(false);
+      console.log('Building picker with configuration:', { API_KEY: !!API_KEY, APP_ID: !!APP_ID });
+      const picker = new window.google.picker.PickerBuilder()
+          .setAppId(APP_ID)
+          .setOAuthToken(token)
+          .setDeveloperKey(API_KEY)
+          .setOrigin(window.location.origin)
+          .addView(myDriveView)
+          .addView(recentView)
+          .setCallback((data: any) => handleFilePicked(data, token))
+          .build();
+      
+      console.log('Picker created successfully, showing...');
+      picker.setVisible(true);
+      setIsGoogleLoading(false);
+    } catch (error: any) {
+      console.error('Error creating picker:', error);
+      toast({ 
+        variant: 'destructive', 
+        title: "Picker Creation Failed", 
+        description: error.message 
+      });
+      setIsGoogleLoading(false);
+    }
   }, [API_KEY, APP_ID, pickerApiLoaded, handleFilePicked, toast]);
   
   useEffect(() => {

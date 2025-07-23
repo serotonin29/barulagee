@@ -7,7 +7,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyDVZ_yr5otQ_uzKUocd9vvEvb-uJn1eE0g",
   authDomain: "neurozsis.firebaseapp.com",
   projectId: "neurozsis",
-  storageBucket: "neurozsis.appspot.com",
+  storageBucket: "cendekia-fk-unp.firebasestorage.app",
   messagingSenderId: "5216400358",
   appId: "1:5216400358:web:b55de85806ea931cc91c27"
 };
