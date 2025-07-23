@@ -110,7 +110,7 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
     
     const handleFileClick = (file: DriveItem) => {
         if (file.source) {
-            if (file.sourceType === 'youtube' || file.source.startsWith('https://firebasestorage.googleapis.com')) {
+            if (file.sourceType === 'youtube' || file.sourceType === 'firebase-storage') {
                 setPreviewItem(file);
             } else if (file.source.startsWith('http')) {
                 window.open(file.source, '_blank');
@@ -318,13 +318,21 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
                             allowFullScreen
                         ></iframe>
-                    ) : previewItem?.source && previewItem.fileType === 'pdf' ? (
-                        <iframe 
-                            width="100%" 
-                            height="100%"
-                            src={previewItem.source}
-                            title={previewItem.name}
-                        ></iframe>
+                    ) : previewItem?.source && (previewItem.fileType === 'pdf' || previewItem.fileType === 'video' || previewItem.fileType === 'image') && previewItem.sourceType === 'firebase-storage' ? (
+                        previewItem.fileType === 'pdf' ? (
+                            <iframe 
+                                width="100%" 
+                                height="100%"
+                                src={previewItem.source}
+                                title={previewItem.name}
+                            ></iframe>
+                        ) : previewItem.fileType === 'video' ? (
+                            <video controls src={previewItem.source} className="max-w-full max-h-full">
+                                Your browser does not support the video tag.
+                            </video>
+                        ) : (
+                            <img src={previewItem.source} alt={previewItem.name} className="max-w-full max-h-full object-contain" />
+                        )
                     ) : (
                        <p className="text-white">Preview tidak tersedia untuk tipe file ini.</p>
                     )}

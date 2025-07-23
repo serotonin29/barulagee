@@ -17,11 +17,7 @@ export function DriveItemGrid({ items, onFolderClick, onFileClick, onDeleteClick
     if (item.type === 'folder') {
       onFolderClick(item.id);
     } else {
-        if (item.source && (item.source.startsWith('http') || item.source.startsWith('https'))) {
-            onFileClick(item);
-        } else {
-            alert(`File preview not available for this item.`);
-        }
+        onFileClick(item);
     }
   };
 
