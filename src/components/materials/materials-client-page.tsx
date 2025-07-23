@@ -37,7 +37,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { UploadMaterialForm } from '@/components/admin/upload-material-form';
-import { FolderPlus, Upload, Loader2 } from 'lucide-react';
+import { FolderPlus, Upload, Loader2, Youtube } from 'lucide-react';
 import type { DriveItem } from '@/types';
 import { BreadcrumbNavigation } from './breadcrumb-navigation';
 import { DriveItemGrid } from './drive-item-grid';
@@ -47,6 +47,7 @@ const newFolderSchema = z.object({
 });
 
 const WARNING_ACKNOWLEDGED_KEY = 'materialWarningAcknowledged';
+const DRIVE_ITEMS_STORAGE_KEY = 'driveItems';
 
 export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[] }) {
     const [items, setItems] = useState<DriveItem[]>(initialItems);
@@ -55,6 +56,7 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
     const [itemToDelete, setItemToDelete] = useState<DriveItem | null>(null);
     const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
     const [showWarning, setShowWarning] = useState(false);
+    const [previewItem, setPreviewItem] = useState<DriveItem | null>(null);
     const { toast } = useToast();
 
     // TODO: Replace with actual role check from user session
@@ -66,6 +68,28 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
             setShowWarning(true);
         }
     }, []);
+    
+    // Load items from localStorage on initial render
+    useEffect(() => {
+        try {
+            const storedItems = localStorage.getItem(DRIVE_ITEMS_STORAGE_KEY);
+            if (storedItems) {
+                setItems(JSON.parse(storedItems));
+            }
+        } catch (error) {
+            console.error("Failed to load from localStorage", error);
+        }
+    }, []);
+
+    // Save items to localStorage whenever they change
+    useEffect(() => {
+        try {
+            localStorage.setItem(DRIVE_ITEMS_STORAGE_KEY, JSON.stringify(items));
+        } catch (error) {
+            console.error("Failed to save to localStorage", error);
+        }
+    }, [items]);
+
 
     const handleAcknowledge = () => {
         sessionStorage.setItem(WARNING_ACKNOWLEDGED_KEY, 'true');
@@ -79,6 +103,14 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
 
     const handleFolderClick = (folderId: string) => {
         setCurrentFolderId(folderId);
+    };
+    
+    const handleFileClick = (file: DriveItem) => {
+        if (file.source) {
+            setPreviewItem(file);
+        } else {
+            alert(`Opening file: ${file.name}. Preview not available.`);
+        }
     };
 
     const handleBreadcrumbClick = (folderId: string | null) => {
@@ -237,7 +269,12 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
                     </div>
                 )}
             </div>
-            <DriveItemGrid items={currentItems} onFolderClick={handleFolderClick} onDeleteClick={handleDeleteRequest} />
+            <DriveItemGrid 
+                items={currentItems} 
+                onFolderClick={handleFolderClick} 
+                onFileClick={handleFileClick}
+                onDeleteClick={handleDeleteRequest} 
+            />
             
             <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
                 <AlertDialogContent>
@@ -255,6 +292,32 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+            
+            <Dialog open={!!previewItem} onOpenChange={(open) => !open && setPreviewItem(null)}>
+                <DialogContent className="max-w-4xl h-[80vh]">
+                    <DialogHeader>
+                        <DialogTitle>{previewItem?.name}</DialogTitle>
+                    </DialogHeader>
+                    <div className="h-full w-full flex items-center justify-center">
+                    {previewItem?.sourceType === 'youtube' && previewItem.source ? (
+                        <iframe 
+                            width="100%" 
+                            height="100%"
+                            src={previewItem.source}
+                            title="YouTube video player" 
+                            frameBorder="0" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                            allowFullScreen
+                        ></iframe>
+                    ) : (
+                       <p>Preview tidak tersedia untuk tipe file ini.</p>
+                    )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
         </div>
     )
 }
+
+    

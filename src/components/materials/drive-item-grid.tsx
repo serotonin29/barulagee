@@ -7,20 +7,17 @@ import { DriveItemCard } from "./drive-item-card";
 type DriveItemGridProps = {
     items: DriveItem[];
     onFolderClick: (folderId: string) => void;
+    onFileClick: (file: DriveItem) => void;
     onDeleteClick: (item: DriveItem) => void;
 };
 
-export function DriveItemGrid({ items, onFolderClick, onDeleteClick }: DriveItemGridProps) {
+export function DriveItemGrid({ items, onFolderClick, onFileClick, onDeleteClick }: DriveItemGridProps) {
   
   const onItemClick = (item: DriveItem) => {
     if (item.type === 'folder') {
       onFolderClick(item.id);
-    } else if (item.source && (item.source.startsWith('http://') || item.source.startsWith('https://'))) {
-      // It's an embeddable link, open it in a new tab
-      window.open(item.source, '_blank', 'noopener,noreferrer');
     } else {
-      // For other file types (e.g., from GDrive picker without a direct URL), show an alert
-      alert(`Opening file: ${item.name}`);
+      onFileClick(item);
     }
   };
 
@@ -46,3 +43,5 @@ export function DriveItemGrid({ items, onFolderClick, onDeleteClick }: DriveItem
     </div>
   );
 }
+
+    
