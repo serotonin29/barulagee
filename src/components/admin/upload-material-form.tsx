@@ -4,7 +4,7 @@ import * as React from "react"
 import { useState, useRef, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, FileUp, Folder, File as FileIcon, X } from "lucide-react"
+import { Loader2, FileUp, File as FileIcon, X } from "lucide-react"
 import { Card } from "../ui/card"
 import type { DriveItem } from "@/types"
 import { Input } from "../ui/input"
@@ -44,47 +44,49 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
   const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
   
-  const [gapiLoaded, setGapiLoaded] = useState(false);
-  const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
+  const gapiLoadedRef = useRef(false);
+  const gisLoadedRef = useRef(false);
+  const pickerApiLoadedRef = useRef(false);
   const oauthToken = useRef<google.accounts.oauth2.TokenResponse | null>(null);
   const tokenClient = useRef<google.accounts.oauth2.TokenClient | null>(null);
 
   useEffect(() => {
-    // Load GAPI for the picker
+    // Load GAPI script
     const gapiScript = document.createElement('script');
     gapiScript.src = 'https://apis.google.com/js/api.js';
     gapiScript.async = true;
     gapiScript.defer = true;
     gapiScript.onload = () => {
-      window.gapi.load('picker', () => {
-        setPickerApiLoaded(true);
-      });
-      setGapiLoaded(true);
+        gapiLoadedRef.current = true;
+        window.gapi.load('picker', () => {
+          pickerApiLoadedRef.current = true;
+        });
     };
     document.body.appendChild(gapiScript);
 
-    // Load GIS for authentication
+    // Load GIS script
     const gisScript = document.createElement('script');
     gisScript.src = 'https://accounts.google.com/gsi/client';
     gisScript.async = true;
     gisScript.defer = true;
     gisScript.onload = () => {
-      tokenClient.current = window.google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        callback: (tokenResponse) => {
-          oauthToken.current = tokenResponse;
-          createPicker(); // Create picker right after getting the token
-        },
-        error_callback: (error) => {
-          setIsGoogleLoading(false);
-          toast({
-            variant: 'destructive',
-            title: 'Otentikasi Gagal',
-            description: `Gagal mendapatkan izin dari Google: ${error.message}`,
-          });
-        }
-      });
+        gisLoadedRef.current = true;
+        tokenClient.current = window.google.accounts.oauth2.initTokenClient({
+            client_id: CLIENT_ID,
+            scope: SCOPES,
+            callback: (tokenResponse) => {
+              oauthToken.current = tokenResponse;
+              createPicker(); // Create picker right after getting the token
+            },
+            error_callback: (error) => {
+              setIsGoogleLoading(false);
+              toast({
+                variant: 'destructive',
+                title: 'Otentikasi Gagal',
+                description: `Gagal mendapatkan izin dari Google: ${error.message}`,
+              });
+            }
+        });
     };
     document.body.appendChild(gisScript);
 
@@ -97,7 +99,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
 
   const createPicker = useCallback(() => {
     setIsGoogleLoading(false);
-    if (!pickerApiLoaded || !gapiLoaded || !oauthToken.current) {
+    if (!pickerApiLoadedRef.current || !gapiLoadedRef.current || !oauthToken.current) {
         toast({
             variant: 'destructive',
             title: 'Picker Error',
@@ -118,7 +120,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         .setCallback(pickerCallback)
         .build();
     picker.setVisible(true);
-  }, [pickerApiLoaded, gapiLoaded, API_KEY, toast]);
+  }, [API_KEY, toast, pickerCallback]);
 
   const pickerCallback = useCallback((data: any) => {
     if (data.action === window.gapi.picker.Action.PICKED) {
@@ -148,7 +150,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
 
   const handleAuthClick = useCallback(() => {
     setIsGoogleLoading(true);
-    if (tokenClient.current) {
+    if (gisLoadedRef.current && tokenClient.current) {
         tokenClient.current.requestAccessToken();
     } else {
         setIsGoogleLoading(false);
