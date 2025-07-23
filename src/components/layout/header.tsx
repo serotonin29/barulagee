@@ -64,11 +64,11 @@ export function Header({ pageTitle }: { pageTitle: string }) {
         description: "You have been logged out.",
       });
       router.push('/login');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "Logout Failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
       });
     }
   };

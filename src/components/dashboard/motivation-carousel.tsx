@@ -43,7 +43,7 @@ export function MotivationCarousel() {
                 </div>
                 <CardContent className="relative flex items-center justify-center p-6 h-40">
                     <p className="text-xl font-semibold text-center">
-                    "{item.quote}"
+                    &ldquo;{item.quote}&rdquo;
                     </p>
                 </CardContent>
             </Card>

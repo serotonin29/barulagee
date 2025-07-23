@@ -117,11 +117,11 @@ export default function ContinueRegistrationPage() {
             description: "Redirecting to your dashboard...",
         });
         router.push('/dashboard');
-    } catch (error: any) {
+    } catch (error: unknown) {
         toast({
             variant: 'destructive',
             title: 'Update Failed',
-            description: error.message,
+            description: error instanceof Error ? error.message : 'An unexpected error occurred',
         });
     } finally {
         setIsLoading(false);
