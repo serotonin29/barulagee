@@ -154,9 +154,8 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
                     <AlertDialogHeader>
                         <AlertDialogTitle>Perhatian Penting!</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Semua materi yang tersedia di halaman ini bersifat rahasia dan hanya untuk penggunaan internal dalam lingkungan akademik.
-                            <br/><br/>
-                            Dengan melanjutkan, Anda setuju untuk **tidak membagikan, menyebarkan, atau mendistribusikan** konten ini kepada pihak mana pun di luar platform ini.
+                            <p>Semua materi yang tersedia di halaman ini bersifat rahasia dan hanya untuk penggunaan internal dalam lingkungan akademik.</p>
+                            <p className="mt-4">Dengan melanjutkan, Anda setuju untuk <strong>tidak membagikan, menyebarkan, atau mendistribusikan</strong> konten ini kepada pihak mana pun di luar platform ini.</p>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
