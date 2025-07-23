@@ -20,6 +20,10 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form"
+import { auth, storage } from "@/lib/firebase";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+
 
 const GoogleIconSvg = (props: React.SVGProps<SVGSVGElement>) => (
     <svg {...props} className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
@@ -30,8 +34,8 @@ const GoogleIconSvg = (props: React.SVGProps<SVGSVGElement>) => (
 const formSchema = z.object({
   fileUrl: z.string().optional(),
 }).refine((data) => {
-    const uploadMethod = (document.querySelector('[data-upload-method]') as HTMLElement)?.dataset.uploadMethod;
-    if (uploadMethod === 'embed') {
+    const uploadMethodElement = document.querySelector('[data-upload-method]');
+    if (uploadMethodElement && uploadMethodElement.getAttribute('data-upload-method') === 'embed') {
         return z.string().url({ message: "Please enter a valid URL." }).safeParse(data.fileUrl).success;
     }
     return true;
@@ -39,6 +43,7 @@ const formSchema = z.object({
     path: ['fileUrl'],
     message: "Please enter a valid URL for the embed method."
 });
+
 
 type UploadMaterialFormProps = {
   onMaterialAdd: (material: DriveItem) => void;
@@ -56,144 +61,140 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [gapiLoaded, setGapiLoaded] = useState(false);
-  const [gisLoaded, setGisLoaded] = useState(false);
   const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
-  const [oauthToken, setOauthToken] = useState<google.accounts.oauth2.TokenResponse | null>(null);
-  const tokenClient = useRef<google.accounts.oauth2.TokenClient | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
-  const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
   const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
-  const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
   
   useEffect(() => {
     const gapiScript = document.createElement('script');
     gapiScript.src = 'https://apis.google.com/js/api.js';
     gapiScript.async = true;
     gapiScript.defer = true;
-    gapiScript.onload = () => setGapiLoaded(true);
+    gapiScript.onload = () => {
+        window.gapi.load('picker', () => {
+            setPickerApiLoaded(true);
+        });
+    };
     document.body.appendChild(gapiScript);
-
-    const gisScript = document.createElement('script');
-    gisScript.src = 'https://accounts.google.com/gsi/client';
-    gisScript.async = true;
-    gisScript.defer = true;
-    gisScript.onload = () => setGisLoaded(true);
-    document.body.appendChild(gisScript);
-
+    
     return () => {
       document.body.removeChild(gapiScript);
-      document.body.removeChild(gisScript);
     };
   }, []);
 
-  useEffect(() => {
-    if (gapiLoaded) {
-      window.gapi.load('picker', () => {
-        setPickerApiLoaded(true);
-      });
+  const handleDriveAuth = async () => {
+    setIsGoogleLoading(true);
+    const provider = new GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/drive.readonly');
+    try {
+        const result = await signInWithPopup(auth, provider);
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        if (credential?.accessToken) {
+            setAccessToken(credential.accessToken);
+            createPicker(credential.accessToken);
+        } else {
+            throw new Error("Could not get access token from Google");
+        }
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Google Authentication Failed",
+            description: error.message,
+        });
+    } finally {
+        setIsGoogleLoading(false);
     }
-  }, [gapiLoaded]);
+  };
 
-  useEffect(() => {
-    if (gisLoaded && !tokenClient.current) {
-      tokenClient.current = window.google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        callback: (tokenResponse) => {
-          setIsGoogleLoading(false);
-          if (tokenResponse.error) {
-            toast({ variant: 'destructive', title: 'Authentication Failed', description: tokenResponse.error_description });
-          } else {
-            setOauthToken(tokenResponse);
-          }
-        },
-      });
-    }
-  }, [gisLoaded, CLIENT_ID, SCOPES, toast]);
-  
-  const pickerCallback = useCallback((data: any) => {
-    if (data.action === window.google.picker.Action.PICKED) {
-      const files = data.docs;
-      files.forEach((file: any) => {
-        const newMaterial: DriveItem = {
-          id: file.id,
-          name: file.name,
-          type: 'file',
-          parentId: currentFolderId,
-          fileType: file.mimeType.includes('video') ? 'video' :
-                    file.mimeType.includes('pdf') ? 'pdf' :
-                    file.mimeType.includes('image') ? 'image' :
-                    'text',
-          source: file.url || file.embedUrl,
-          coverImage: file.thumbnails?.[0]?.url || `https://placehold.co/600x400`,
-        };
-        onMaterialAdd(newMaterial);
-      });
+  const handleFilePicked = useCallback(async (data: any) => {
+    setIsGoogleLoading(true);
+    try {
+      const file = data.docs[0];
+      const fileId = file.id;
+
       toast({
-        title: "Materials Selected",
-        description: `${files.length} file(s) have been added from Google Drive.`,
-      })
+        title: "Processing File...",
+        description: `Downloading "${file.name}" from Google Drive.`,
+      });
+
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to download file from Google Drive');
+      }
+
+      const fileBlob = await res.blob();
+      
+      toast({
+        title: "Uploading to Storage...",
+        description: `File downloaded. Now uploading to application storage.`,
+      });
+
+      const fileRef = storageRef(storage, `materials/${Date.now()}-${file.name}`);
+      const snapshot = await uploadBytes(fileRef, fileBlob);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+
+      const newMaterial: DriveItem = {
+        id: file.id,
+        name: file.name,
+        type: 'file',
+        parentId: currentFolderId,
+        fileType: file.mimeType.includes('video') ? 'video' :
+                  file.mimeType.includes('pdf') ? 'pdf' :
+                  file.mimeType.includes('image') ? 'image' :
+                  'text',
+        source: downloadURL,
+        coverImage: file.thumbnails?.[0]?.url || `https://placehold.co/600x400`,
+      };
+      
+      onMaterialAdd(newMaterial);
+      toast({
+        title: "Material Added Successfully",
+        description: `"${file.name}" is now available.`,
+      });
       onClose();
-    } else if (data.action === window.google.picker.Action.CANCEL) {
-      // User cancelled, do nothing.
-    }
-  }, [currentFolderId, onMaterialAdd, onClose, toast]);
 
-  const createPicker = useCallback(() => {
-    if (!pickerApiLoaded || !oauthToken) {
-      toast({
-          variant: 'destructive',
-          title: 'Picker Error',
-          description: 'Google Picker is not ready. Please try again.',
-      });
+    } catch (error: any) {
+      console.error(error);
+      toast({ variant: 'destructive', title: 'Error Processing File', description: error.message });
+    } finally {
       setIsGoogleLoading(false);
-      return;
+    }
+  }, [accessToken, currentFolderId, onMaterialAdd, onClose, toast]);
+
+  const createPicker = useCallback((token: string) => {
+    if (!pickerApiLoaded || !token) {
+        toast({ variant: 'destructive', title: 'Picker Error', description: 'Google Picker is not ready or authentication failed.' });
+        return;
     }
     
     const myDriveView = new window.google.picker.DocsView();
+    const sharedWithMeView = new window.google.picker.DocsView().setOwnedByMe(false);
+    const recentView = new window.google.picker.DocsView();
+    if(window.google.picker.SortOrder) {
+        recentView.setSort(window.google.picker.SortOrder.LAST_OPENED_BY_ME);
+    }
 
-    const sharedWithMeView = new window.google.picker.DocsView()
-        .setOwnedByMe(false);
-
-    const recentView = new window.google.picker.DocsView()
-        .setSort(window.google.picker.SortOrder.LAST_OPENED_BY_ME);
 
     const picker = new window.google.picker.PickerBuilder()
         .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
-        .setOAuthToken(oauthToken.access_token)
+        .setOAuthToken(token)
+        .setDeveloperKey(API_KEY)
         .addView(myDriveView)
         .addView(sharedWithMeView)
         .addView(recentView)
-        .setDeveloperKey(API_KEY)
-        .setCallback(pickerCallback)
+        .setCallback(handleFilePicked)
         .build();
     picker.setVisible(true);
-  }, [API_KEY, toast, pickerCallback, pickerApiLoaded, oauthToken]);
+  }, [API_KEY, pickerApiLoaded, handleFilePicked, toast]);
 
-  useEffect(() => {
-    if (oauthToken && pickerApiLoaded) {
-      createPicker();
-    }
-  }, [oauthToken, pickerApiLoaded, createPicker]);
-  
-  const handleAuthClick = useCallback(() => {
-    setIsGoogleLoading(true);
-    if (tokenClient.current) {
-      tokenClient.current.requestAccessToken();
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Google authentication client is not ready. Please wait.',
-      });
-      setIsGoogleLoading(false);
-    }
-  }, [toast]);
-  
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
     setUploadMethod(method);
     if (method === 'gdrive') {
-        handleAuthClick();
+        handleDriveAuth();
     } else {
         setStep("details");
     }
@@ -214,6 +215,12 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     }
   });
   
+  const getYouTubeThumbnail = (url: string) => {
+    const videoIdMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    const videoId = videoIdMatch ? videoIdMatch[1] : null;
+    return videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : `https://placehold.co/600x400`;
+  };
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true)
     
@@ -225,26 +232,53 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     };
 
     if (uploadMethod === 'embed' && values.fileUrl) {
+        const url = values.fileUrl;
         try {
-            submissionData.name = new URL(values.fileUrl).hostname;
+            submissionData.name = new URL(url).hostname;
         } catch (e) {
             submissionData.name = "Embedded Link"
         }
-        submissionData.fileType = 'video'; // Assuming embed links are mostly videos
-        submissionData.source = values.fileUrl;
-        submissionData.coverImage = `https://placehold.co/600x400`;
+
+        if (url.includes('youtube.com') || url.includes('youtu.be')) {
+            const videoIdMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+            const videoId = videoIdMatch ? videoIdMatch[1] : null;
+            submissionData.fileType = 'video';
+            submissionData.sourceType = 'youtube';
+            submissionData.source = videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+            submissionData.coverImage = getYouTubeThumbnail(url);
+            submissionData.name = "YouTube Video";
+        } else {
+            submissionData.fileType = 'video'; // Assuming embed links are mostly videos
+            submissionData.source = url;
+            submissionData.coverImage = `https://placehold.co/600x400`;
+        }
+
     } else if (uploadMethod === 'local' && fileInputRef.current?.files) {
         const file = fileInputRef.current.files[0];
         if (file) {
-          submissionData.name = file.name;
-          submissionData.fileType = 'pdf'; // Placeholder, would need more logic for file types
-          submissionData.source = "local-file-placeholder";
-          submissionData.coverImage = `https://placehold.co/600x400`;
+          try {
+            toast({
+              title: "Uploading to Storage...",
+              description: `Uploading "${file.name}" to application storage.`,
+            });
+            const fileRef = storageRef(storage, `materials/${Date.now()}-${file.name}`);
+            const snapshot = await uploadBytes(fileRef, file);
+            const downloadURL = await getDownloadURL(snapshot.ref);
+
+            submissionData.name = file.name;
+            submissionData.fileType = file.type.startsWith('image/') ? 'image' : 
+                                      file.type === 'application/pdf' ? 'pdf' :
+                                      file.type.startsWith('video/') ? 'video' : 'text';
+            submissionData.source = downloadURL;
+            submissionData.coverImage = `https://placehold.co/600x400`;
+          } catch(e: any) {
+              console.error("Local upload error", e);
+              toast({ variant: 'destructive', title: 'Upload Failed', description: e.message });
+              setIsSubmitting(false);
+              return;
+          }
         }
     }
-
-    // Simulate upload delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
 
     onMaterialAdd(submissionData as DriveItem);
 
@@ -291,7 +325,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
                 {uploadMethod === 'local' && (
                     <div className="space-y-2">
                         <Label htmlFor="localFile">Upload File</Label>
-                        <Input id="localFile" type="file" ref={fileInputRef} />
+                        <Input id="localFile" type="file" ref={fileInputRef} required />
                     </div>
                 )}
 
@@ -327,7 +361,14 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   
   return (
     <div>
-        {step === 'method' ? renderMethodStep() : renderDetailsStep()}
+        {step === 'method' && !isGoogleLoading ? renderMethodStep() : null}
+        {step === 'details' && !isGoogleLoading ? renderDetailsStep() : null}
+        {isGoogleLoading && (
+             <div className="flex flex-col items-center justify-center h-32">
+                <Loader2 className="w-8 h-8 animate-spin text-primary"/>
+                <span className="mt-4 text-sm text-muted-foreground">Connecting to Google Drive...</span>
+            </div>
+        )}
     </div>
   )
 }

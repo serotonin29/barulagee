@@ -50,7 +50,18 @@ const WARNING_ACKNOWLEDGED_KEY = 'materialWarningAcknowledged';
 const DRIVE_ITEMS_STORAGE_KEY = 'driveItems';
 
 export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[] }) {
-    const [items, setItems] = useState<DriveItem[]>(initialItems);
+    const [items, setItems] = useState<DriveItem[]>(() => {
+        if (typeof window === 'undefined') {
+            return initialItems;
+        }
+        try {
+            const storedItems = localStorage.getItem(DRIVE_ITEMS_STORAGE_KEY);
+            return storedItems ? JSON.parse(storedItems) : initialItems;
+        } catch (error) {
+            console.error("Failed to load from localStorage", error);
+            return initialItems;
+        }
+    });
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
     const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
     const [itemToDelete, setItemToDelete] = useState<DriveItem | null>(null);
@@ -63,30 +74,22 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
     const userRole = 'admin';
 
     useEffect(() => {
-        const isAcknowledged = sessionStorage.getItem(WARNING_ACKNOWLEDGED_KEY);
-        if (isAcknowledged !== 'true') {
-            setShowWarning(true);
+        if (typeof window !== 'undefined') {
+            const isAcknowledged = sessionStorage.getItem(WARNING_ACKNOWLEDGED_KEY);
+            if (isAcknowledged !== 'true') {
+                setShowWarning(true);
+            }
         }
     }, []);
     
-    // Load items from localStorage on initial render
-    useEffect(() => {
-        try {
-            const storedItems = localStorage.getItem(DRIVE_ITEMS_STORAGE_KEY);
-            if (storedItems) {
-                setItems(JSON.parse(storedItems));
-            }
-        } catch (error) {
-            console.error("Failed to load from localStorage", error);
-        }
-    }, []);
-
     // Save items to localStorage whenever they change
     useEffect(() => {
-        try {
-            localStorage.setItem(DRIVE_ITEMS_STORAGE_KEY, JSON.stringify(items));
-        } catch (error) {
-            console.error("Failed to save to localStorage", error);
+        if (typeof window !== 'undefined') {
+            try {
+                localStorage.setItem(DRIVE_ITEMS_STORAGE_KEY, JSON.stringify(items));
+            } catch (error) {
+                console.error("Failed to save to localStorage", error);
+            }
         }
     }, [items]);
 
@@ -107,9 +110,15 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
     
     const handleFileClick = (file: DriveItem) => {
         if (file.source) {
-            setPreviewItem(file);
+            if (file.sourceType === 'youtube' || file.source.startsWith('https://firebasestorage.googleapis.com')) {
+                setPreviewItem(file);
+            } else if (file.source.startsWith('http')) {
+                window.open(file.source, '_blank');
+            } else {
+                alert(`Cannot open this file type.`);
+            }
         } else {
-            alert(`Opening file: ${file.name}. Preview not available.`);
+            alert(`File source not available.`);
         }
     };
 
@@ -298,7 +307,7 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
                     <DialogHeader>
                         <DialogTitle>{previewItem?.name}</DialogTitle>
                     </DialogHeader>
-                    <div className="h-full w-full flex items-center justify-center">
+                    <div className="h-full w-full flex items-center justify-center bg-black">
                     {previewItem?.sourceType === 'youtube' && previewItem.source ? (
                         <iframe 
                             width="100%" 
@@ -309,8 +318,15 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
                             allowFullScreen
                         ></iframe>
+                    ) : previewItem?.source && previewItem.fileType === 'pdf' ? (
+                        <iframe 
+                            width="100%" 
+                            height="100%"
+                            src={previewItem.source}
+                            title={previewItem.name}
+                        ></iframe>
                     ) : (
-                       <p>Preview tidak tersedia untuk tipe file ini.</p>
+                       <p className="text-white">Preview tidak tersedia untuk tipe file ini.</p>
                     )}
                     </div>
                 </DialogContent>
@@ -319,5 +335,3 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
         </div>
     )
 }
-
-    

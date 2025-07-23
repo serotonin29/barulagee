@@ -18,6 +18,7 @@ export type DriveItem = {
   // File-specific properties
   fileType?: 'video' | 'pdf' | 'infographic' | 'text' | 'image';
   source?: string; // URL or identifier
+  sourceType?: 'youtube' | 'firebase-storage' | 'external';
   coverImage?: string;
   dataAiHint?: string;
 };
