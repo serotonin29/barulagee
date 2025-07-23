@@ -96,32 +96,6 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     };
   }, [CLIENT_ID, SCOPES, toast]);
 
-
-  const createPicker = useCallback(() => {
-    setIsGoogleLoading(false);
-    if (!pickerApiLoadedRef.current || !gapiLoadedRef.current || !oauthToken.current) {
-        toast({
-            variant: 'destructive',
-            title: 'Picker Error',
-            description: 'Google Picker tidak siap. Coba lagi.',
-        });
-        return;
-    }
-
-    const view = new window.gapi.picker.DocsView()
-        .setIncludeFolders(false)
-        .setSelectFolderEnabled(false);
-
-    const picker = new window.gapi.picker.PickerBuilder()
-        .enableFeature(window.gapi.picker.Feature.MULTISELECT_ENABLED)
-        .setOAuthToken(oauthToken.current.access_token)
-        .addView(view)
-        .setDeveloperKey(API_KEY)
-        .setCallback(pickerCallback)
-        .build();
-    picker.setVisible(true);
-  }, [API_KEY, toast, pickerCallback]);
-
   const pickerCallback = useCallback((data: any) => {
     if (data.action === window.gapi.picker.Action.PICKED) {
       const files = data.docs;
@@ -147,6 +121,32 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       onClose();
     }
   }, [currentFolderId, onMaterialAdd, onClose, toast]);
+
+
+  const createPicker = useCallback(() => {
+    setIsGoogleLoading(false);
+    if (!pickerApiLoadedRef.current || !gapiLoadedRef.current || !oauthToken.current) {
+        toast({
+            variant: 'destructive',
+            title: 'Picker Error',
+            description: 'Google Picker tidak siap. Coba lagi.',
+        });
+        return;
+    }
+
+    const view = new window.gapi.picker.DocsView()
+        .setIncludeFolders(false)
+        .setSelectFolderEnabled(false);
+
+    const picker = new window.gapi.picker.PickerBuilder()
+        .enableFeature(window.gapi.picker.Feature.MULTISELECT_ENABLED)
+        .setOAuthToken(oauthToken.current.access_token)
+        .addView(view)
+        .setDeveloperKey(API_KEY)
+        .setCallback(pickerCallback)
+        .build();
+    picker.setVisible(true);
+  }, [API_KEY, toast, pickerCallback]);
 
   const handleAuthClick = useCallback(() => {
     setIsGoogleLoading(true);
