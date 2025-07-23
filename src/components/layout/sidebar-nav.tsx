@@ -34,7 +34,11 @@ const secondaryNavItems = [
     { href: '/ai-learning', icon: Sparkles, label: 'Belajar dengan AI' },
 ]
 
-const adminNavItems = [];
+const adminNavItems: Array<{
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}> = [];
 
 export function SidebarNav() {
   const pathname = usePathname();

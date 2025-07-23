@@ -45,7 +45,7 @@ export function ChatbotWidget() {
     setIsLoading(true);
 
     try {
-      const chatInput: AIChatbotInput = { query: input };
+      const chatInput: AIChatbotInput = { query: input, contextualSearch: true };
       const response = await aiChatbot(chatInput);
       const assistantMessage: ChatMessageType = {
         id: String(Date.now() + 1),
