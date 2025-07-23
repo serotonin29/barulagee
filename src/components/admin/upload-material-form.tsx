@@ -43,7 +43,6 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const [isGapiLoaded, setIsGapiLoaded] = useState(false);
   const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
   
-  const tokenClient = useRef<google.accounts.oauth2.TokenClient | null>(null);
   const oauthToken = useRef<google.accounts.oauth2.TokenResponse | null>(null);
   
   const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
@@ -64,7 +63,10 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     gapiScript.src = 'https://apis.google.com/js/api.js';
     gapiScript.async = true;
     gapiScript.defer = true;
-    gapiScript.onload = () => setIsGapiLoaded(true);
+    gapiScript.onload = () => window.gapi.load('client:picker', () => {
+        setIsGapiLoaded(true);
+        setPickerApiLoaded(true);
+    });
     document.body.appendChild(gapiScript);
 
     return () => {
@@ -72,14 +74,6 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       document.body.removeChild(gapiScript);
     };
   }, []);
-
-  useEffect(() => {
-    if (isGapiLoaded) {
-      window.gapi.load('picker', () => {
-        setPickerApiLoaded(true);
-      });
-    }
-  }, [isGapiLoaded]);
 
   const pickerCallback = useCallback((data: any) => {
     if (data.action === window.gapi.picker.Action.PICKED) {
@@ -105,16 +99,17 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       })
       onClose();
     }
+    setIsGoogleLoading(false);
   }, [currentFolderId, onMaterialAdd, onClose, toast]);
 
   const createPicker = useCallback(() => {
-    setIsGoogleLoading(false);
-    if (!pickerApiLoaded || !oauthToken.current) {
+    if (!pickerApiLoaded || !oauthToken.current || !window.gapi?.picker) {
         toast({
             variant: 'destructive',
             title: 'Picker Error',
             description: 'Google Picker tidak siap. Coba lagi.',
         });
+        setIsGoogleLoading(false);
         return;
     }
 
@@ -134,33 +129,36 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   
   const handleAuthClick = useCallback(() => {
     setIsGoogleLoading(true);
-    if (isGisLoaded) {
-        tokenClient.current = window.google.accounts.oauth2.initTokenClient({
-            client_id: CLIENT_ID,
-            scope: SCOPES,
-            callback: (tokenResponse) => {
-              oauthToken.current = tokenResponse;
-              createPicker();
-            },
-            error_callback: (error) => {
-              setIsGoogleLoading(false);
-              toast({
-                variant: 'destructive',
-                title: 'Otentikasi Gagal',
-                description: `Gagal mendapatkan izin dari Google: ${error.message}`,
-              });
-            }
-        });
-        tokenClient.current.requestAccessToken();
-    } else {
-        setIsGoogleLoading(false);
+    if (!isGisLoaded || !isGapiLoaded) {
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'Klien otentikasi Google belum siap. Mohon tunggu sebentar dan coba lagi.',
+            description: 'Layanan Google belum siap. Mohon tunggu sebentar dan coba lagi.',
         });
+        setIsGoogleLoading(false);
+        return;
     }
-  }, [isGisLoaded, toast, createPicker, CLIENT_ID, SCOPES]);
+
+    const tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: (tokenResponse) => {
+          if (tokenResponse.error) {
+              toast({ variant: 'destructive', title: 'Otentikasi Gagal', description: tokenResponse.error_description });
+              setIsGoogleLoading(false);
+          } else {
+              oauthToken.current = tokenResponse;
+              createPicker();
+          }
+        },
+    });
+
+    if (!oauthToken.current) {
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+    } else {
+        createPicker();
+    }
+  }, [isGisLoaded, isGapiLoaded, toast, createPicker, CLIENT_ID, SCOPES]);
   // --- End of Google Picker Implementation ---
 
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
