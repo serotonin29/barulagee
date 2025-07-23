@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -25,6 +26,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   Form,
   FormControl,
@@ -36,7 +38,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { UploadMaterialForm } from '@/components/admin/upload-material-form';
-import { FolderPlus, Upload, Loader2 } from 'lucide-react';
+import { FolderPlus, Upload, Loader2, AlertTriangle } from 'lucide-react';
 import type { DriveItem } from '@/types';
 import { BreadcrumbNavigation } from './breadcrumb-navigation';
 import { DriveItemGrid } from './drive-item-grid';
@@ -133,6 +135,13 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
 
     return (
         <div className="space-y-6">
+            <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Perhatian!</AlertTitle>
+                <AlertDescription>
+                    Semua materi yang tersedia di halaman ini bersifat rahasia dan hanya untuk penggunaan internal. Dilarang keras membagikan atau mendistribusikan konten ini kepada pihak lain.
+                </AlertDescription>
+            </Alert>
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <BreadcrumbNavigation path={path} onBreadcrumbClick={handleBreadcrumbClick} />
 
