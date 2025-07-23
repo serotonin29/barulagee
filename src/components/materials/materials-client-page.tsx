@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -19,14 +19,12 @@ import {
 import {
     AlertDialog,
     AlertDialogAction,
-    AlertDialogCancel,
     AlertDialogContent,
     AlertDialogDescription,
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   Form,
   FormControl,
@@ -38,7 +36,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { UploadMaterialForm } from '@/components/admin/upload-material-form';
-import { FolderPlus, Upload, Loader2, AlertTriangle } from 'lucide-react';
+import { FolderPlus, Upload, Loader2 } from 'lucide-react';
 import type { DriveItem } from '@/types';
 import { BreadcrumbNavigation } from './breadcrumb-navigation';
 import { DriveItemGrid } from './drive-item-grid';
@@ -47,16 +45,31 @@ const newFolderSchema = z.object({
   name: z.string().min(1, { message: 'Nama folder tidak boleh kosong.' }),
 });
 
+const WARNING_ACKNOWLEDGED_KEY = 'materialWarningAcknowledged';
+
 export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[] }) {
     const [items, setItems] = useState<DriveItem[]>(initialItems);
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
     const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
     const [itemToDelete, setItemToDelete] = useState<DriveItem | null>(null);
     const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+    const [showWarning, setShowWarning] = useState(false);
     const { toast } = useToast();
 
     // TODO: Replace with actual role check from user session
     const userRole = 'admin';
+
+    useEffect(() => {
+        const isAcknowledged = sessionStorage.getItem(WARNING_ACKNOWLEDGED_KEY);
+        if (isAcknowledged !== 'true') {
+            setShowWarning(true);
+        }
+    }, []);
+
+    const handleAcknowledge = () => {
+        sessionStorage.setItem(WARNING_ACKNOWLEDGED_KEY, 'true');
+        setShowWarning(false);
+    };
 
     const form = useForm<z.infer<typeof newFolderSchema>>({
       resolver: zodResolver(newFolderSchema),
@@ -135,13 +148,21 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
 
     return (
         <div className="space-y-6">
-            <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Perhatian!</AlertTitle>
-                <AlertDescription>
-                    Semua materi yang tersedia di halaman ini bersifat rahasia dan hanya untuk penggunaan internal. Dilarang keras membagikan atau mendistribusikan konten ini kepada pihak lain.
-                </AlertDescription>
-            </Alert>
+             <AlertDialog open={showWarning} onOpenChange={setShowWarning}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Perhatian Penting!</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Semua materi yang tersedia di halaman ini bersifat rahasia dan hanya untuk penggunaan internal dalam lingkungan akademik.
+                            <br/><br/>
+                            Dengan melanjutkan, Anda setuju untuk **tidak membagikan, menyebarkan, atau mendistribusikan** konten ini kepada pihak mana pun di luar platform ini.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogAction onClick={handleAcknowledge}>Saya Mengerti</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <BreadcrumbNavigation path={path} onBreadcrumbClick={handleBreadcrumbClick} />
 
