@@ -37,34 +37,31 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // --- Google Picker Implementation ---
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [isGisLoaded, setIsGisLoaded] = useState(false);
-  const [isGapiLoaded, setIsGapiLoaded] = useState(false);
+  const [gapiLoaded, setGapiLoaded] = useState(false);
+  const [gisLoaded, setGisLoaded] = useState(false);
   const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
-  
   const oauthToken = useRef<google.accounts.oauth2.TokenResponse | null>(null);
-  
+  const tokenClient = useRef<google.accounts.oauth2.TokenClient | null>(null);
+
   const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
   const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
   const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
 
   useEffect(() => {
-    // Load GIS script
     const gisScript = document.createElement('script');
     gisScript.src = 'https://accounts.google.com/gsi/client';
     gisScript.async = true;
     gisScript.defer = true;
-    gisScript.onload = () => setIsGisLoaded(true);
+    gisScript.onload = () => setGisLoaded(true);
     document.body.appendChild(gisScript);
 
-    // Load GAPI script
     const gapiScript = document.createElement('script');
-    gapiScript.src = 'https://apis.google.com/js/api.js';
+gapiScript.src = 'https://apis.google.com/js/api.js';
     gapiScript.async = true;
     gapiScript.defer = true;
-    gapiScript.onload = () => window.gapi.load('client:picker', () => {
-        setIsGapiLoaded(true);
+    gapiScript.onload = () => window.gapi.load('picker', () => {
+        setGapiLoaded(true);
         setPickerApiLoaded(true);
     });
     document.body.appendChild(gapiScript);
@@ -113,14 +110,27 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         return;
     }
 
-    const view = new window.gapi.picker.DocsView()
+    const myDriveView = new window.gapi.picker.DocsView()
         .setIncludeFolders(false)
         .setSelectFolderEnabled(false);
+
+    const sharedWithMeView = new window.gapi.picker.DocsView()
+        .setIncludeFolders(false)
+        .setSelectFolderEnabled(false)
+        .setOwnedByMe(false)
+        .setSort(new window.gapi.picker.DocsViewSort('sharedDate', false));
+        
+    const recentView = new window.gapi.picker.DocsView()
+        .setIncludeFolders(false)
+        .setSelectFolderEnabled(false)
+        .setSort(new window.gapi.picker.DocsViewSort('lastOpened', false));
 
     const picker = new window.gapi.picker.PickerBuilder()
         .enableFeature(window.gapi.picker.Feature.MULTISELECT_ENABLED)
         .setOAuthToken(oauthToken.current.access_token)
-        .addView(view)
+        .addView(myDriveView)
+        .addView(sharedWithMeView)
+        .addView(recentView)
         .setDeveloperKey(API_KEY)
         .setCallback(pickerCallback)
         .build();
@@ -129,7 +139,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   
   const handleAuthClick = useCallback(() => {
     setIsGoogleLoading(true);
-    if (!isGisLoaded || !isGapiLoaded) {
+    if (!gisLoaded || !gapiLoaded) {
         toast({
             variant: 'destructive',
             title: 'Error',
@@ -139,28 +149,29 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         return;
     }
 
-    const tokenClient = window.google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        callback: (tokenResponse) => {
-          if (tokenResponse.error) {
-              toast({ variant: 'destructive', title: 'Otentikasi Gagal', description: tokenResponse.error_description });
-              setIsGoogleLoading(false);
-          } else {
-              oauthToken.current = tokenResponse;
-              createPicker();
-          }
-        },
-    });
+    if (!tokenClient.current) {
+        tokenClient.current = window.google.accounts.oauth2.initTokenClient({
+            client_id: CLIENT_ID,
+            scope: SCOPES,
+            callback: (tokenResponse) => {
+              if (tokenResponse.error) {
+                  toast({ variant: 'destructive', title: 'Otentikasi Gagal', description: tokenResponse.error_description });
+                  setIsGoogleLoading(false);
+              } else {
+                  oauthToken.current = tokenResponse;
+                  createPicker();
+              }
+            },
+        });
+    }
 
     if (!oauthToken.current) {
-        tokenClient.requestAccessToken({ prompt: 'consent' });
+        tokenClient.current.requestAccessToken({ prompt: 'consent' });
     } else {
         createPicker();
     }
-  }, [isGisLoaded, isGapiLoaded, toast, createPicker, CLIENT_ID, SCOPES]);
-  // --- End of Google Picker Implementation ---
-
+  }, [gisLoaded, gapiLoaded, toast, createPicker, CLIENT_ID, SCOPES]);
+  
   const handleSelectMethod = (method: "local" | "gdrive" | "embed") => {
     setUploadMethod(method);
     if (method === 'gdrive') {
