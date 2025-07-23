@@ -39,7 +39,9 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [isGapiReady, setIsGapiReady] = useState(false);
+  const [gapiLoaded, setGapiLoaded] = useState(false);
+  const [gisLoaded, setGisLoaded] = useState(false);
+  const [pickerApiLoaded, setPickerApiLoaded] = useState(false);
   const [oauthToken, setOauthToken] = useState<google.accounts.oauth2.TokenResponse | null>(null);
   const tokenClient = useRef<google.accounts.oauth2.TokenClient | null>(null);
 
@@ -47,54 +49,52 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
   const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
   
-  const handleGapiLoad = useCallback(() => {
-    window.gapi.load('client:picker', () => {
-      window.gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest')
-        .then(() => {
-          setIsGapiReady(true);
-        }, (err) => {
-          console.error("Error loading GAPI client for API", err);
-          toast({ variant: 'destructive', title: 'Error', description: 'Gagal memuat GAPI client.' });
-        });
-    });
-  }, [toast]);
-  
-  const handleGisLoad = useCallback(() => {
-    tokenClient.current = window.google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: SCOPES,
-      callback: (tokenResponse) => {
-        if (tokenResponse.error) {
-          toast({ variant: 'destructive', title: 'Otentikasi Gagal', description: tokenResponse.error_description });
-          setIsGoogleLoading(false);
-        } else {
-          setOauthToken(tokenResponse);
-        }
-      },
-    });
-  }, [CLIENT_ID, SCOPES, toast]);
-  
   useEffect(() => {
     const gapiScript = document.createElement('script');
     gapiScript.src = 'https://apis.google.com/js/api.js';
     gapiScript.async = true;
     gapiScript.defer = true;
-    gapiScript.onload = handleGapiLoad;
+    gapiScript.onload = () => setGapiLoaded(true);
     document.body.appendChild(gapiScript);
 
     const gisScript = document.createElement('script');
     gisScript.src = 'https://accounts.google.com/gsi/client';
     gisScript.async = true;
     gisScript.defer = true;
-    gisScript.onload = handleGisLoad;
+    gisScript.onload = () => setGisLoaded(true);
     document.body.appendChild(gisScript);
 
     return () => {
       document.body.removeChild(gapiScript);
       document.body.removeChild(gisScript);
     };
-  }, [handleGapiLoad, handleGisLoad]);
+  }, []);
 
+  useEffect(() => {
+    if (gapiLoaded) {
+      window.gapi.load('picker', () => {
+        setPickerApiLoaded(true);
+      });
+    }
+  }, [gapiLoaded]);
+
+  useEffect(() => {
+    if (gisLoaded) {
+      tokenClient.current = window.google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: (tokenResponse) => {
+          if (tokenResponse.error) {
+            toast({ variant: 'destructive', title: 'Otentikasi Gagal', description: tokenResponse.error_description });
+            setIsGoogleLoading(false);
+          } else {
+            setOauthToken(tokenResponse);
+          }
+        },
+      });
+    }
+  }, [gisLoaded, CLIENT_ID, SCOPES, toast]);
+  
   const pickerCallback = useCallback((data: any) => {
     setIsGoogleLoading(false);
     if (data.action === window.google.picker.Action.PICKED) {
@@ -125,7 +125,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   }, [currentFolderId, onMaterialAdd, onClose, toast]);
 
   const createPicker = useCallback(() => {
-    if (!isGapiReady || !oauthToken) {
+    if (!pickerApiLoaded || !oauthToken) {
       toast({
           variant: 'destructive',
           title: 'Picker Error',
@@ -142,8 +142,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     const sharedWithMeView = new window.google.picker.DocsView()
         .setIncludeFolders(false)
         .setSelectFolderEnabled(false)
-        .setOwnedByMe(false)
-        .setSort(window.google.picker.SortOrder.LAST_MODIFIED);
+        .setOwnedByMe(false);
         
     const recentView = new window.google.picker.DocsView()
         .setIncludeFolders(false)
@@ -160,7 +159,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
         .setCallback(pickerCallback)
         .build();
     picker.setVisible(true);
-  }, [API_KEY, toast, pickerCallback, isGapiReady, oauthToken]);
+  }, [API_KEY, toast, pickerCallback, pickerApiLoaded, oauthToken]);
 
   useEffect(() => {
     if (oauthToken) {
@@ -309,3 +308,5 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     </div>
   )
 }
+
+    
