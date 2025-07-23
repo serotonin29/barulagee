@@ -67,11 +67,11 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
   const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
   const APP_ID = process.env.NEXT_PUBLIC_GOOGLE_APP_ID || '';
   
+  const onPickerApiLoad = useCallback(() => {
+    setPickerApiLoaded(true);
+  }, []);
+  
   useEffect(() => {
-    const onPickerApiLoad = () => {
-      setPickerApiLoaded(true);
-    };
-
     (window as any).onPickerApiLoad = onPickerApiLoad;
 
     const gapiScript = document.createElement('script');
@@ -87,7 +87,7 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
       document.body.removeChild(gapiScript);
       delete (window as any).onPickerApiLoad;
     };
-  }, []);
+  }, [onPickerApiLoad]);
 
   const handleDriveAuth = async () => {
     setIsGoogleLoading(true);
@@ -393,3 +393,5 @@ export function UploadMaterialForm({ onMaterialAdd, onClose, currentFolderId }: 
     </div>
   )
 }
+
+    
