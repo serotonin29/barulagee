@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -152,12 +153,10 @@ export function MaterialsClientPage({ initialItems }: { initialItems: DriveItem[
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Perhatian Penting!</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            <div>
-                                <span>Semua materi yang tersedia di halaman ini bersifat rahasia dan hanya untuk penggunaan internal dalam lingkungan akademik.</span>
-                                <div className="mt-4">Dengan melanjutkan, Anda setuju untuk <strong>tidak membagikan, menyebarkan, atau mendistribusikan</strong> konten ini kepada pihak mana pun di luar platform ini.</div>
-                            </div>
-                        </AlertDialogDescription>
+                        <div className="text-sm text-muted-foreground pt-2">
+                            <span>Semua materi yang tersedia di halaman ini bersifat rahasia dan hanya untuk penggunaan internal dalam lingkungan akademik.</span>
+                            <div className="mt-4">Dengan melanjutkan, Anda setuju untuk <strong>tidak membagikan, menyebarkan, atau mendistribusikan</strong> konten ini kepada pihak mana pun di luar platform ini.</div>
+                        </div>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogAction onClick={handleAcknowledge}>Saya Mengerti</AlertDialogAction>
